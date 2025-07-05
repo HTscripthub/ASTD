@@ -13,7 +13,9 @@ end
 local ConfigSystem = {}
 ConfigSystem.FileName = "HTHubConfig_" .. game:GetService("Players").LocalPlayer.Name .. ".json"
 ConfigSystem.DefaultConfig = {
-    -- Map Settings
+    --Save Settings
+    AutoVoteStart = false,
+    AutoRetry = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -71,6 +73,47 @@ local mainTab = window:AddTab({
 local settingTab = window:AddTab({
     Title = "Setting",
     Icon = "settings"
+})
+
+-- Auto Play Section
+local AutoPlaySection = mainTab:AddSection("Auto Play")
+
+-- Auto Vote Start Toggle
+AutoPlaySection:AddToggle({
+    Title = "Auto Vote Start",
+    Description = "Tự động bỏ phiếu bắt đầu trò chơi.",
+    Value = ConfigSystem.CurrentConfig.AutoVoteStart,
+    Callback = function(value)
+        ConfigSystem.CurrentConfig.AutoVoteStart = value
+        if value then
+            local args = {
+                "StartVoteYes"
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+        end
+        ConfigSystem.SaveConfig()
+    end
+})
+
+-- Auto Retry Toggle
+AutoPlaySection:AddToggle({
+    Title = "Auto Retry",
+    Description = "Tự động thử lại sau khi trò chơi kết thúc.",
+    Value = ConfigSystem.CurrentConfig.AutoRetry,
+    Callback = function(value)
+        ConfigSystem.CurrentConfig.AutoRetry = value
+        if value then
+            local args = {
+                {
+                    Type = "Game",
+                    Index = "Replay",
+                    Mode = "Reward"
+                }
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+        end
+        ConfigSystem.SaveConfig()
+    end
 })
 
 -- Thêm hỗ trợ Logo khi minimize
@@ -159,83 +202,3 @@ settingTab:AddParagraph({
     Title = "Phím tắt",
     Content = "Nhấn LeftControl để ẩn/hiện giao diện"
 })
-
---Tab Main
--- Thêm Section Auto Play vào tab Main
-local autoPlaySection = mainTab:AddSection("Auto Play")
-
--- Thêm biến lưu trạng thái toggle
-if ConfigSystem.CurrentConfig.AutoVoteStart == nil then
-    ConfigSystem.CurrentConfig.AutoVoteStart = false
-end
-if ConfigSystem.CurrentConfig.AutoRetry == nil then
-    ConfigSystem.CurrentConfig.AutoRetry = false
-end
-
--- Hàm Auto Vote Start
-local autoVoteStartConnection
-local function handleAutoVoteStart(enabled)
-    if autoVoteStartConnection then
-        autoVoteStartConnection:Disconnect()
-        autoVoteStartConnection = nil
-    end
-    if enabled then
-        autoVoteStartConnection = game:GetService("RunService").Heartbeat:Connect(function()
-            local args = {"StartVoteYes"}
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
-            end)
-            task.wait(2) -- Gửi mỗi 2 giây
-        end)
-    end
-end
-
--- Hàm Auto Retry
-local autoRetryConnection
-local function handleAutoRetry(enabled)
-    if autoRetryConnection then
-        autoRetryConnection:Disconnect()
-        autoRetryConnection = nil
-    end
-    if enabled then
-        autoRetryConnection = game:GetService("RunService").Heartbeat:Connect(function()
-            local args = {
-                {
-                    Type = "Game",
-                    Index = "Replay",
-                    Mode = "Reward"
-                }
-            }
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-            end)
-            task.wait(2) -- Gửi mỗi 2 giây
-        end)
-    end
-end
-
--- Toggle Auto Vote Start
-mainTab:AddToggle("Auto Vote Start", {
-    Title = "Auto Vote Start",
-    Default = ConfigSystem.CurrentConfig.AutoVoteStart,
-    Callback = function(state)
-        ConfigSystem.CurrentConfig.AutoVoteStart = state
-        ConfigSystem.SaveConfig()
-        handleAutoVoteStart(state)
-    end
-})
-
--- Toggle Auto Retry
-mainTab:AddToggle("Auto Retry", {
-    Title = "Auto Retry",
-    Default = ConfigSystem.CurrentConfig.AutoRetry,
-    Callback = function(state)
-        ConfigSystem.CurrentConfig.AutoRetry = state
-        ConfigSystem.SaveConfig()
-        handleAutoRetry(state)
-    end
-})
-
--- Khởi động lại các auto nếu đã bật trong config
-handleAutoVoteStart(ConfigSystem.CurrentConfig.AutoVoteStart)
-handleAutoRetry(ConfigSystem.CurrentConfig.AutoRetry)
