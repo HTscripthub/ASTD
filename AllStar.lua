@@ -1,4 +1,4 @@
--- Load UI Library với error handling
+-- Load thư viện Fluent UI
 local success, err = pcall(function()
     Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
     SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
@@ -6,9 +6,14 @@ local success, err = pcall(function()
 end)
 
 if not success then
-    warn("Lỗi khi tải UI Library: " .. tostring(err))
+    warn("Không thể load Fluent UI: " .. tostring(err))
     return
 end
+
+-- Lấy tên người chơi để tạo file cấu hình riêng
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerName = LocalPlayer.Name
 
 -- Tạo Window chính
 local Window = Fluent:CreateWindow({
@@ -24,20 +29,56 @@ local Window = Fluent:CreateWindow({
 -- Tạo Tab Main
 local MainTab = Window:AddTab({ Title = "Main", Icon = "home" })
 
--- Biến trạng thái cho Auto functions
-local AutoVoteEnabled = false
+-- Biến lưu trạng thái
+local AutoVoteStartEnabled = false
 local AutoRetryEnabled = false
+
+-- Hàm tự động lưu cấu hình
+local function AutoSaveConfig()
+    local config = {
+        AutoVoteStart = AutoVoteStartEnabled,
+        AutoRetry = AutoRetryEnabled
+    }
+    
+    -- Lưu cấu hình với tên người chơi
+    local configName = PlayerName .. "_Config"
+    SaveManager:SetLibrary(Fluent)
+    SaveManager:SetFolder("HT HUB/" .. PlayerName)
+    SaveManager:BuildConfigSection(MainTab)
+    
+    -- Lưu ngay lập tức
+    pcall(function()
+        SaveManager:SaveConfig(configName, config)
+    end)
+end
+
+-- Hàm load cấu hình
+local function LoadConfig()
+    local configName = PlayerName .. "_Config"
+    SaveManager:SetLibrary(Fluent)
+    SaveManager:SetFolder("HT HUB/" .. PlayerName)
+    
+    pcall(function()
+        local loadedConfig = SaveManager:LoadConfig(configName)
+        if loadedConfig then
+            AutoVoteStartEnabled = loadedConfig.AutoVoteStart or false
+            AutoRetryEnabled = loadedConfig.AutoRetry or false
+        end
+    end)
+end
 
 -- Tạo Section Auto Play
 local AutoPlaySection = MainTab:AddSection("Auto Play")
 
 -- Toggle Auto Vote Start
-local AutoVoteToggle = AutoPlaySection:AddToggle("AutoVote", {
+local AutoVoteStartToggle = AutoPlaySection:AddToggle("AutoVoteStart", {
     Title = "Auto Vote Start",
-    Description = "Tự động bầu chọn bắt đầu",
-    Default = false,
+    Description = "Tự động vote start game",
+    Default = AutoVoteStartEnabled,
     Callback = function(Value)
-        AutoVoteEnabled = Value
+        AutoVoteStartEnabled = Value
+        AutoSaveConfig() -- Tự động lưu ngay khi thay đổi
+        
         if Value then
             print("Auto Vote Start: Bật")
         else
@@ -49,10 +90,12 @@ local AutoVoteToggle = AutoPlaySection:AddToggle("AutoVote", {
 -- Toggle Auto Retry
 local AutoRetryToggle = AutoPlaySection:AddToggle("AutoRetry", {
     Title = "Auto Retry",
-    Description = "Tự động thử lại game",
-    Default = false,
+    Description = "Tự động retry game khi thua",
+    Default = AutoRetryEnabled,
     Callback = function(Value)
         AutoRetryEnabled = Value
+        AutoSaveConfig() -- Tự động lưu ngay khi thay đổi
+        
         if Value then
             print("Auto Retry: Bật")
         else
@@ -61,85 +104,135 @@ local AutoRetryToggle = AutoPlaySection:AddToggle("AutoRetry", {
     end
 })
 
--- Hàm Auto Vote
-local function AutoVote()
-    if AutoVoteEnabled then
-        local success, err = pcall(function()
+-- Hàm thực hiện Auto Vote Start
+local function ExecuteAutoVoteStart()
+    if AutoVoteStartEnabled then
+        pcall(function()
             local args = {"StartVoteYes"}
             game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
         end)
-        
-        if not success then
-            warn("Lỗi Auto Vote: " .. tostring(err))
-        end
     end
 end
 
--- Hàm Auto Retry
-local function AutoRetry()
+-- Hàm thực hiện Auto Retry
+local function ExecuteAutoRetry()
     if AutoRetryEnabled then
-        local success, err = pcall(function()
-            local args = {{
-                Type = "Game",
-                Index = "Replay",
-                Mode = "Reward"
-            }}
+        pcall(function()
+            local args = {{Type = "Game", Index = "Replay", Mode = "Reward"}}
             game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
         end)
-        
-        if not success then
-            warn("Lỗi Auto Retry: " .. tostring(err))
-        end
     end
 end
 
--- Loop chính cho Auto functions
-spawn(function()
-    while true do
-        wait(1) -- Đợi 1 giây giữa mỗi lần thực hiện
-        
-        if AutoVoteEnabled then
-            AutoVote()
-        end
-        
-        if AutoRetryEnabled then
-            AutoRetry()
-        end
+-- Hệ thống tự động thực hiện các chức năng
+local RunService = game:GetService("RunService")
+local lastVoteTime = 0
+local lastRetryTime = 0
+
+RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    
+    -- Auto Vote Start mỗi 5 giây
+    if currentTime - lastVoteTime >= 5 then
+        ExecuteAutoVoteStart()
+        lastVoteTime = currentTime
+    end
+    
+    -- Auto Retry mỗi 3 giây
+    if currentTime - lastRetryTime >= 3 then
+        ExecuteAutoRetry()
+        lastRetryTime = currentTime
     end
 end)
 
--- Lấy tên người chơi
-local PlayerName = game.Players.LocalPlayer.Name
+-- Thêm Section Settings
+local SettingsSection = MainTab:AddSection("Settings")
 
--- Thiết lập hệ thống lưu trữ cấu hình
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-
--- Thiết lập folder lưu trữ theo tên người chơi
-local SaveFolder = "HT HUB" .. PlayerName
-SaveManager:SetFolder(SaveFolder)
-
--- Cấu hình interface manager theo tên người chơi
-InterfaceManager:SetFolder(SaveFolder)
-
--- Tạo tab Settings cho cấu hình
-local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
-
--- Thêm save manager vào settings tab
-SaveManager:BuildConfigSection(SettingsTab)
-
--- Thêm interface manager vào settings tab  
-InterfaceManager:BuildInterfaceSection(SettingsTab)
-
--- Tự động lưu cấu hình
-SaveManager:LoadAutoloadConfig()
-
--- Thông báo script đã tải thành công
-Fluent:Notify({
-    Title = "Script Loaded",
-    Content = "HT Hub đã tải thành công!",
-    Duration = 5
+-- Button để lưu cấu hình thủ công
+SettingsSection:AddButton({
+    Title = "Lưu Cấu Hình",
+    Description = "Lưu cấu hình hiện tại",
+    Callback = function()
+        AutoSaveConfig()
+        Window:Dialog({
+            Title = "Thông Báo",
+            Content = "Đã lưu cấu hình thành công!",
+            Buttons = {
+                {
+                    Title = "OK",
+                    Callback = function()
+                        print("Cấu hình đã được lưu")
+                    end
+                }
+            }
+        })
+    end
 })
 
-print("Script đã tải thành công!")
-print("Sử dụng Left Ctrl để thu nhỏ/mở rộng UI")
+-- Button để load cấu hình thủ công
+SettingsSection:AddButton({
+    Title = "Tải Cấu Hình",
+    Description = "Tải cấu hình đã lưu",
+    Callback = function()
+        LoadConfig()
+        
+        -- Cập nhật UI với cấu hình đã load
+        AutoVoteStartToggle:SetValue(AutoVoteStartEnabled)
+        AutoRetryToggle:SetValue(AutoRetryEnabled)
+        
+        Window:Dialog({
+            Title = "Thông Báo",
+            Content = "Đã tải cấu hình thành công!",
+            Buttons = {
+                {
+                    Title = "OK",
+                    Callback = function()
+                        print("Cấu hình đã được tải")
+                    end
+                }
+            }
+        })
+    end
+})
+
+-- Thêm thông tin người chơi
+local InfoSection = MainTab:AddSection("Thông Tin")
+InfoSection:AddParagraph({
+    Title = "Người Chơi",
+    Content = "Tên: " .. PlayerName .. "\nCấu hình sẽ được lưu tự động khi thay đổi"
+})
+
+-- Setup SaveManager và InterfaceManager
+SaveManager:SetLibrary(Fluent)
+SaveManager:SetFolder("HT HUB/" .. PlayerName)
+SaveManager:BuildConfigSection(MainTab)
+
+InterfaceManager:SetLibrary(Fluent)
+InterfaceManager:SetFolder("HT HUB/" .. PlayerName)
+InterfaceManager:BuildInterfaceSection(MainTab)
+
+-- Load cấu hình khi khởi động
+LoadConfig()
+
+-- Cập nhật UI với cấu hình đã load
+AutoVoteStartToggle:SetValue(AutoVoteStartEnabled)
+AutoRetryToggle:SetValue(AutoRetryEnabled)
+
+-- Thông báo khởi động
+Window:Dialog({
+    Title = "Chào Mừng",
+    Content = "Script đã khởi động thành công!\nTất cả cấu hình sẽ được lưu tự động.",
+    Buttons = {
+        {
+            Title = "OK",
+            Callback = function()
+                print("Script đã sẵn sàng!")
+            end
+        }
+    }
+})
+
+print("=== AUTO SCRIPT LOADED ===")
+print("Player: " .. PlayerName)
+print("Auto Save: Enabled")
+print("=========================")
