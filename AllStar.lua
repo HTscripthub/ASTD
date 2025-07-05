@@ -1,3 +1,4 @@
+-- Load UI Library với error handling
 local success, err = pcall(function()
     Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
     SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
@@ -5,200 +6,136 @@ local success, err = pcall(function()
 end)
 
 if not success then
-    warn("Failed to load Fluent UI:", err)
+    warn("Lỗi khi tải UI Library: " .. tostring(err))
     return
 end
 
--- Hệ thống lưu trữ cấu hình
-local ConfigSystem = {}
-ConfigSystem.FileName = "HTHubConfig_" .. game:GetService("Players").LocalPlayer.Name .. ".json"
-ConfigSystem.DefaultConfig = {
-    --Save Settings
-    AutoVoteStart = false,
-    AutoRetry = false,
-}
-ConfigSystem.CurrentConfig = {}
-
--- Hàm để lưu cấu hình
-ConfigSystem.SaveConfig = function()
-    local success, err = pcall(function()
-        writefile(ConfigSystem.FileName, game:GetService("HttpService"):JSONEncode(ConfigSystem.CurrentConfig))
-    end)
-    if success then
-        print("Đã lưu cấu hình thành công!")
-    else
-        warn("Lưu cấu hình thất bại:", err)
-    end
-end
-
--- Hàm để tải cấu hình
-ConfigSystem.LoadConfig = function()
-    local success, content = pcall(function()
-        if isfile(ConfigSystem.FileName) then
-            return readfile(ConfigSystem.FileName)
-        end
-        return nil
-    end)
-    
-    if success and content then
-        local data = game:GetService("HttpService"):JSONDecode(content)
-        ConfigSystem.CurrentConfig = data
-        return true
-    else
-        ConfigSystem.CurrentConfig = table.clone(ConfigSystem.DefaultConfig)
-        ConfigSystem.SaveConfig()
-        return false
-    end
-end
-
--- Tải cấu hình khi khởi động
-ConfigSystem.LoadConfig()
-
-local window = Fluent:CreateWindow({
-    Title = "HT Hub",
+-- Tạo Window chính
+local Window = Fluent:CreateWindow({
+    Title = "HT HUB",
     SubTitle = "",
     TabWidth = 80,
     Size = UDim2.fromOffset(300, 220),
     Acrylic = true,
-    Theme = "Amethyst",
-    MinimizeKey = Enum.KeyCode.RightControl
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- Lớp Tab
-local mainTab = window:AddTab({
-    Title = "Main",
-    Icon = "home"
-})
+-- Tạo Tab Main
+local MainTab = Window:AddTab({ Title = "Main", Icon = "home" })
 
-local settingTab = window:AddTab({
-    Title = "Setting",
-    Icon = "settings"
-})
+-- Biến trạng thái cho Auto functions
+local AutoVoteEnabled = false
+local AutoRetryEnabled = false
 
--- Auto Play Section
-local AutoPlaySection = mainTab:AddSection("Auto Play")
+-- Tạo Section Auto Play
+local AutoPlaySection = MainTab:AddSection("Auto Play")
 
--- Auto Vote Start Toggle
-AutoPlaySection:AddToggle({
+-- Toggle Auto Vote Start
+local AutoVoteToggle = AutoPlaySection:AddToggle("AutoVote", {
     Title = "Auto Vote Start",
-    Description = "Tự động bỏ phiếu bắt đầu trò chơi.",
-    Value = ConfigSystem.CurrentConfig.AutoVoteStart,
-    Callback = function(value)
-        ConfigSystem.CurrentConfig.AutoVoteStart = value
-        if value then
-            local args = {
-                "StartVoteYes"
-            }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+    Description = "Tự động bầu chọn bắt đầu",
+    Default = false,
+    Callback = function(Value)
+        AutoVoteEnabled = Value
+        if Value then
+            print("Auto Vote Start: Bật")
+        else
+            print("Auto Vote Start: Tắt")
         end
-        ConfigSystem.SaveConfig()
     end
 })
 
--- Auto Retry Toggle
-AutoPlaySection:AddToggle({
+-- Toggle Auto Retry
+local AutoRetryToggle = AutoPlaySection:AddToggle("AutoRetry", {
     Title = "Auto Retry",
-    Description = "Tự động thử lại sau khi trò chơi kết thúc.",
-    Value = ConfigSystem.CurrentConfig.AutoRetry,
-    Callback = function(value)
-        ConfigSystem.CurrentConfig.AutoRetry = value
-        if value then
-            local args = {
-                {
-                    Type = "Game",
-                    Index = "Replay",
-                    Mode = "Reward"
-                }
-            }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+    Description = "Tự động thử lại game",
+    Default = false,
+    Callback = function(Value)
+        AutoRetryEnabled = Value
+        if Value then
+            print("Auto Retry: Bật")
+        else
+            print("Auto Retry: Tắt")
         end
-        ConfigSystem.SaveConfig()
     end
 })
 
--- Thêm hỗ trợ Logo khi minimize
-repeat task.wait(0.25) until game:IsLoaded()
-getgenv().Image = "rbxassetid://13099788281" -- ID tài nguyên hình ảnh logo
-getgenv().ToggleUI = "LeftControl" -- Phím để bật/tắt giao diện
-
--- Tạo logo để mở lại UI khi đã minimize
-task.spawn(function()
-    local success, errorMsg = pcall(function()
-        if not getgenv().LoadedMobileUI == true then 
-            getgenv().LoadedMobileUI = true
-            local OpenUI = Instance.new("ScreenGui")
-            local ImageButton = Instance.new("ImageButton")
-            local UICorner = Instance.new("UICorner")
-            
-            -- Kiểm tra môi trường
-            if syn and syn.protect_gui then
-                syn.protect_gui(OpenUI)
-                OpenUI.Parent = game:GetService("CoreGui")
-            elseif gethui then
-                OpenUI.Parent = gethui()
-            else
-                OpenUI.Parent = game:GetService("CoreGui")
-            end
-            
-            OpenUI.Name = "OpenUI"
-            OpenUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            
-            ImageButton.Parent = OpenUI
-            ImageButton.BackgroundColor3 = Color3.fromRGB(105,105,105)
-            ImageButton.BackgroundTransparency = 0.8
-            ImageButton.Position = UDim2.new(0.9,0,0.1,0)
-            ImageButton.Size = UDim2.new(0,50,0,50)
-            ImageButton.Image = getgenv().Image
-            ImageButton.Draggable = true
-            ImageButton.Transparency = 0.2
-            
-            UICorner.CornerRadius = UDim.new(0,200)
-            UICorner.Parent = ImageButton
-            
-            -- Khi click vào logo sẽ mở lại UI
-            ImageButton.MouseButton1Click:Connect(function()
-                game:GetService("VirtualInputManager"):SendKeyEvent(true,getgenv().ToggleUI,false,game)
-            end)
+-- Hàm Auto Vote
+local function AutoVote()
+    if AutoVoteEnabled then
+        local success, err = pcall(function()
+            local args = {"StartVoteYes"}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+        end)
+        
+        if not success then
+            warn("Lỗi Auto Vote: " .. tostring(err))
         end
-    end)
-    
-    if not success then
-        warn("Lỗi khi tạo nút Logo UI: " .. tostring(errorMsg))
+    end
+end
+
+-- Hàm Auto Retry
+local function AutoRetry()
+    if AutoRetryEnabled then
+        local success, err = pcall(function()
+            local args = {{
+                Type = "Game",
+                Index = "Replay",
+                Mode = "Reward"
+            }}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+        end)
+        
+        if not success then
+            warn("Lỗi Auto Retry: " .. tostring(err))
+        end
+    end
+end
+
+-- Loop chính cho Auto functions
+spawn(function()
+    while true do
+        wait(1) -- Đợi 1 giây giữa mỗi lần thực hiện
+        
+        if AutoVoteEnabled then
+            AutoVote()
+        end
+        
+        if AutoRetryEnabled then
+            AutoRetry()
+        end
     end
 end)
 
--- Settings tab
-local SettingsSection = settingTab:AddSection("Script Settings")
--- Integration with SaveManager
+-- Thiết lập hệ thống lưu trữ cấu hình
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 
--- Lưu cấu hình để sử dụng tên người chơi
-local playerName = game:GetService("Players").LocalPlayer.Name
-InterfaceManager:SetFolder("HTHubASTD")
-SaveManager:SetFolder("HTHubASTD/" .. playerName)
+-- Thiết lập folder lưu trữ
+SaveManager:SetFolder("HT HUB")
 
--- Auto Save Config - chạy ít thường xuyên hơn
-local function AutoSaveConfig()
-    spawn(function()
-        while wait(5) do -- Lưu mỗi 5 giây
-            pcall(function()
-                ConfigSystem.SaveConfig()
-            end)
-        end
-    end)
-end
+-- Cấu hình interface manager
+InterfaceManager:SetFolder("HT HUB")
 
--- Thực thi tự động lưu cấu hình
-AutoSaveConfig()
+-- Tạo tab Settings cho cấu hình
+local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
 
--- Thêm thông tin vào tab Settings
-settingTab:AddParagraph({
-    Title = "Cấu hình tự động",
-    Content = "Cấu hình của bạn đang được tự động lưu theo tên nhân vật: " .. playerName
+-- Thêm save manager vào settings tab
+SaveManager:BuildConfigSection(SettingsTab)
+
+-- Thêm interface manager vào settings tab  
+InterfaceManager:BuildInterfaceSection(SettingsTab)
+
+-- Tự động lưu cấu hình
+SaveManager:LoadAutoloadConfig()
+
+-- Thông báo script đã tải thành công
+Fluent:Notify({
+    Title = "Script Loaded",
+    Content = "HT HUB đã tải thành công!",
+    Duration = 5
 })
 
-settingTab:AddParagraph({
-    Title = "Phím tắt",
-    Content = "Nhấn LeftControl để ẩn/hiện giao diện"
-})
+print("Script đã tải thành công!")
+print("Sử dụng Left Ctrl để thu nhỏ/mở rộng UI")
