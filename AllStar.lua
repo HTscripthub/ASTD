@@ -216,7 +216,7 @@ end
 
 -- Toggle Auto Vote Start
 mainTab:AddToggle("Auto Vote Start", {
-    Text = "Auto Vote Start",
+    Title = "Auto Vote Start",
     Default = ConfigSystem.CurrentConfig.AutoVoteStart,
     Callback = function(state)
         ConfigSystem.CurrentConfig.AutoVoteStart = state
@@ -227,7 +227,7 @@ mainTab:AddToggle("Auto Vote Start", {
 
 -- Toggle Auto Retry
 mainTab:AddToggle("Auto Retry", {
-    Text = "Auto Retry",
+    Title = "Auto Retry",
     Default = ConfigSystem.CurrentConfig.AutoRetry,
     Callback = function(state)
         ConfigSystem.CurrentConfig.AutoRetry = state
