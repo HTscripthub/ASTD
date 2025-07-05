@@ -108,15 +108,19 @@ spawn(function()
     end
 end)
 
+-- Lấy tên người chơi
+local PlayerName = game.Players.LocalPlayer.Name
+
 -- Thiết lập hệ thống lưu trữ cấu hình
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 
--- Thiết lập folder lưu trữ
-SaveManager:SetFolder("HT HUB")
+-- Thiết lập folder lưu trữ theo tên người chơi
+local SaveFolder = "HT HUB" .. PlayerName
+SaveManager:SetFolder(SaveFolder)
 
--- Cấu hình interface manager
-InterfaceManager:SetFolder("HT HUB")
+-- Cấu hình interface manager theo tên người chơi
+InterfaceManager:SetFolder(SaveFolder)
 
 -- Tạo tab Settings cho cấu hình
 local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
@@ -133,7 +137,7 @@ SaveManager:LoadAutoloadConfig()
 -- Thông báo script đã tải thành công
 Fluent:Notify({
     Title = "Script Loaded",
-    Content = "HT HUB đã tải thành công!",
+    Content = "HT Hub đã tải thành công!",
     Duration = 5
 })
 
