@@ -1,238 +1,215 @@
--- Load thư viện Fluent UI
-local success, err = pcall(function()
-    Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-    SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-    InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-end)
+-- Load MacLib
+local MacLib = loadstring(game:HttpGet("https://github.com/biggaboy212/Maclib/releases/latest/download/maclib.txt"))()
 
-if not success then
-    warn("Không thể load Fluent UI: " .. tostring(err))
-    return
-end
+-- Tạo Window
+local Window = MacLib:CreateWindow({
+    Title = "Auto Script",
+    Subtitle = "by Your Name",
+    Size = UDim2.fromOffset(580, 460),
+    Theme = "Dark"
+})
 
--- Lấy tên người chơi để tạo file cấu hình riêng
+-- Lấy tên người chơi
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerName = LocalPlayer.Name
 
--- Tạo Window chính
-local Window = Fluent:CreateWindow({
-    Title = "HT HUB",
-    SubTitle = "",
-    TabWidth = 80,
-    Size = UDim2.fromOffset(300, 220),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
-})
+-- Hệ thống lưu cấu hình
+local ConfigFile = PlayerName .. "_config.json"
+local DefaultConfig = {
+    AutoVoteStart = false,
+    AutoRetry = false
+}
+
+-- Hàm lưu cấu hình
+local function SaveConfig(config)
+    local success, result = pcall(function()
+        writefile(ConfigFile, game:GetService("HttpService"):JSONEncode(config))
+    end)
+    if not success then
+        warn("Không thể lưu cấu hình: " .. tostring(result))
+    end
+end
+
+-- Hàm tải cấu hình
+local function LoadConfig()
+    local success, result = pcall(function()
+        if isfile(ConfigFile) then
+            local data = readfile(ConfigFile)
+            return game:GetService("HttpService"):JSONDecode(data)
+        end
+        return DefaultConfig
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Không thể tải cấu hình: " .. tostring(result))
+        return DefaultConfig
+    end
+end
+
+-- Tải cấu hình ban đầu
+local Config = LoadConfig()
+
+-- Biến điều khiển auto
+local AutoVoteStartEnabled = Config.AutoVoteStart
+local AutoRetryEnabled = Config.AutoRetry
+
+-- Hàm Auto Vote Start
+local function AutoVoteStart()
+    if AutoVoteStartEnabled then
+        spawn(function()
+            while AutoVoteStartEnabled do
+                local success, error = pcall(function()
+                    local args = {"StartVoteYes"}
+                    ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+                end)
+                
+                if not success then
+                    warn("Lỗi Auto Vote Start: " .. tostring(error))
+                end
+                
+                wait(1) -- Delay 1 giây để tránh spam
+            end
+        end)
+    end
+end
+
+-- Hàm Auto Retry
+local function AutoRetry()
+    if AutoRetryEnabled then
+        spawn(function()
+            while AutoRetryEnabled do
+                local success, error = pcall(function()
+                    local args = {
+                        {
+                            Type = "Game",
+                            Index = "Replay",
+                            Mode = "Reward"
+                        }
+                    }
+                    ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+                end)
+                
+                if not success then
+                    warn("Lỗi Auto Retry: " .. tostring(error))
+                end
+                
+                wait(2) -- Delay 2 giây cho Auto Retry
+            end
+        end)
+    end
+end
 
 -- Tạo Tab Main
-local MainTab = Window:AddTab({ Title = "Main", Icon = "home" })
-
--- Biến lưu trạng thái
-local AutoVoteStartEnabled = false
-local AutoRetryEnabled = false
-
--- Hàm tự động lưu cấu hình
-local function AutoSaveConfig()
-    local config = {
-        AutoVoteStart = AutoVoteStartEnabled,
-        AutoRetry = AutoRetryEnabled
-    }
-    
-    -- Lưu cấu hình với tên người chơi
-    local configName = PlayerName .. "_Config"
-    SaveManager:SetLibrary(Fluent)
-    SaveManager:SetFolder("HT HUB/" .. PlayerName)
-    SaveManager:BuildConfigSection(MainTab)
-    
-    -- Lưu ngay lập tức
-    pcall(function()
-        SaveManager:SaveConfig(configName, config)
-    end)
-end
-
--- Hàm load cấu hình
-local function LoadConfig()
-    local configName = PlayerName .. "_Config"
-    SaveManager:SetLibrary(Fluent)
-    SaveManager:SetFolder("HT HUB/" .. PlayerName)
-    
-    pcall(function()
-        local loadedConfig = SaveManager:LoadConfig(configName)
-        if loadedConfig then
-            AutoVoteStartEnabled = loadedConfig.AutoVoteStart or false
-            AutoRetryEnabled = loadedConfig.AutoRetry or false
-        end
-    end)
-end
+local MainTab = Window:CreateTab({
+    Title = "Main",
+    Icon = "play"
+})
 
 -- Tạo Section Auto Play
-local AutoPlaySection = MainTab:AddSection("Auto Play")
+local AutoPlaySection = MainTab:CreateSection({
+    Title = "Auto Play",
+    Side = "Left"
+})
 
 -- Toggle Auto Vote Start
-local AutoVoteStartToggle = AutoPlaySection:AddToggle("AutoVoteStart", {
+local AutoVoteStartToggle = AutoPlaySection:CreateToggle({
     Title = "Auto Vote Start",
-    Description = "Tự động vote start game",
-    Default = AutoVoteStartEnabled,
-    Callback = function(Value)
-        AutoVoteStartEnabled = Value
-        AutoSaveConfig() -- Tự động lưu ngay khi thay đổi
+    Description = "Tự động bỏ phiếu bắt đầu game",
+    Default = Config.AutoVoteStart,
+    Callback = function(state)
+        AutoVoteStartEnabled = state
+        Config.AutoVoteStart = state
+        SaveConfig(Config)
         
-        if Value then
-            print("Auto Vote Start: Bật")
+        if state then
+            AutoVoteStart()
+            print("Auto Vote Start: BẬT")
         else
-            print("Auto Vote Start: Tắt")
+            print("Auto Vote Start: TẮT")
         end
     end
 })
 
 -- Toggle Auto Retry
-local AutoRetryToggle = AutoPlaySection:AddToggle("AutoRetry", {
+local AutoRetryToggle = AutoPlaySection:CreateToggle({
     Title = "Auto Retry",
-    Description = "Tự động retry game khi thua",
-    Default = AutoRetryEnabled,
-    Callback = function(Value)
-        AutoRetryEnabled = Value
-        AutoSaveConfig() -- Tự động lưu ngay khi thay đổi
+    Description = "Tự động thử lại game",
+    Default = Config.AutoRetry,
+    Callback = function(state)
+        AutoRetryEnabled = state
+        Config.AutoRetry = state
+        SaveConfig(Config)
         
-        if Value then
-            print("Auto Retry: Bật")
+        if state then
+            AutoRetry()
+            print("Auto Retry: BẬT")
         else
-            print("Auto Retry: Tắt")
+            print("Auto Retry: TẮT")
         end
     end
 })
 
--- Hàm thực hiện Auto Vote Start
-local function ExecuteAutoVoteStart()
-    if AutoVoteStartEnabled then
-        pcall(function()
-            local args = {"StartVoteYes"}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
-        end)
+-- Tạo Section thông tin
+local InfoSection = MainTab:CreateSection({
+    Title = "Thông tin",
+    Side = "Right"
+})
+
+-- Hiển thị tên người chơi
+InfoSection:CreateLabel({
+    Title = "Người chơi: " .. PlayerName,
+    Description = "Cấu hình được lưu riêng cho tài khoản này"
+})
+
+-- Nút lưu cấu hình thủ công
+InfoSection:CreateButton({
+    Title = "Lưu cấu hình",
+    Description = "Lưu cấu hình hiện tại",
+    Callback = function()
+        SaveConfig(Config)
+        print("Đã lưu cấu hình cho " .. PlayerName)
     end
+})
+
+-- Nút reset cấu hình
+InfoSection:CreateButton({
+    Title = "Reset cấu hình",
+    Description = "Khôi phục cấu hình mặc định",
+    Callback = function()
+        Config = DefaultConfig
+        SaveConfig(Config)
+        
+        -- Cập nhật UI
+        AutoVoteStartToggle:Set(Config.AutoVoteStart)
+        AutoRetryToggle:Set(Config.AutoRetry)
+        
+        -- Tắt tất cả auto
+        AutoVoteStartEnabled = false
+        AutoRetryEnabled = false
+        
+        print("Đã reset cấu hình về mặc định")
+    end
+})
+
+-- Tự động bật các tính năng nếu đã được lưu
+if Config.AutoVoteStart then
+    AutoVoteStart()
 end
 
--- Hàm thực hiện Auto Retry
-local function ExecuteAutoRetry()
-    if AutoRetryEnabled then
-        pcall(function()
-            local args = {{Type = "Game", Index = "Replay", Mode = "Reward"}}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-        end)
-    end
+if Config.AutoRetry then
+    AutoRetry()
 end
 
--- Hệ thống tự động thực hiện các chức năng
-local RunService = game:GetService("RunService")
-local lastVoteTime = 0
-local lastRetryTime = 0
-
-RunService.Heartbeat:Connect(function()
-    local currentTime = tick()
-    
-    -- Auto Vote Start mỗi 5 giây
-    if currentTime - lastVoteTime >= 5 then
-        ExecuteAutoVoteStart()
-        lastVoteTime = currentTime
-    end
-    
-    -- Auto Retry mỗi 3 giây
-    if currentTime - lastRetryTime >= 3 then
-        ExecuteAutoRetry()
-        lastRetryTime = currentTime
+-- Lưu cấu hình khi player thoát game
+Players.PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        SaveConfig(Config)
     end
 end)
 
--- Thêm Section Settings
-local SettingsSection = MainTab:AddSection("Settings")
-
--- Button để lưu cấu hình thủ công
-SettingsSection:AddButton({
-    Title = "Lưu Cấu Hình",
-    Description = "Lưu cấu hình hiện tại",
-    Callback = function()
-        AutoSaveConfig()
-        Window:Dialog({
-            Title = "Thông Báo",
-            Content = "Đã lưu cấu hình thành công!",
-            Buttons = {
-                {
-                    Title = "OK",
-                    Callback = function()
-                        print("Cấu hình đã được lưu")
-                    end
-                }
-            }
-        })
-    end
-})
-
--- Button để load cấu hình thủ công
-SettingsSection:AddButton({
-    Title = "Tải Cấu Hình",
-    Description = "Tải cấu hình đã lưu",
-    Callback = function()
-        LoadConfig()
-        
-        -- Cập nhật UI với cấu hình đã load
-        AutoVoteStartToggle:SetValue(AutoVoteStartEnabled)
-        AutoRetryToggle:SetValue(AutoRetryEnabled)
-        
-        Window:Dialog({
-            Title = "Thông Báo",
-            Content = "Đã tải cấu hình thành công!",
-            Buttons = {
-                {
-                    Title = "OK",
-                    Callback = function()
-                        print("Cấu hình đã được tải")
-                    end
-                }
-            }
-        })
-    end
-})
-
--- Thêm thông tin người chơi
-local InfoSection = MainTab:AddSection("Thông Tin")
-InfoSection:AddParagraph({
-    Title = "Người Chơi",
-    Content = "Tên: " .. PlayerName .. "\nCấu hình sẽ được lưu tự động khi thay đổi"
-})
-
--- Setup SaveManager và InterfaceManager
-SaveManager:SetLibrary(Fluent)
-SaveManager:SetFolder("HT HUB/" .. PlayerName)
-SaveManager:BuildConfigSection(MainTab)
-
-InterfaceManager:SetLibrary(Fluent)
-InterfaceManager:SetFolder("HT HUB/" .. PlayerName)
-InterfaceManager:BuildInterfaceSection(MainTab)
-
--- Load cấu hình khi khởi động
-LoadConfig()
-
--- Cập nhật UI với cấu hình đã load
-AutoVoteStartToggle:SetValue(AutoVoteStartEnabled)
-AutoRetryToggle:SetValue(AutoRetryEnabled)
-
--- Thông báo khởi động
-Window:Dialog({
-    Title = "Chào Mừng",
-    Content = "Script đã khởi động thành công!\nTất cả cấu hình sẽ được lưu tự động.",
-    Buttons = {
-        {
-            Title = "OK",
-            Callback = function()
-                print("Script đã sẵn sàng!")
-            end
-        }
-    }
-})
-
-print("=== AUTO SCRIPT LOADED ===")
-print("Player: " .. PlayerName)
-print("Auto Save: Enabled")
-print("=========================")
+print("Script đã tải hoàn tất cho " .. PlayerName)
+print("Cấu hình được lưu tự động tại: " .. ConfigFile)
