@@ -22,7 +22,8 @@ ConfigSystem.FileName = "HTHubAllStar_" .. game:GetService("Players").LocalPlaye
 ConfigSystem.DefaultConfig = {
     -- Auto Play Settings
     AutoVoteEnabled = false,
-    AutoRetryEnabled = false
+    AutoRetryEnabled = false,
+    AutoSkipEnabled = false
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -61,9 +62,10 @@ end
 -- Tải cấu hình khi khởi động
 ConfigSystem.LoadConfig()
 
--- Biến lưu trạng thái
+-- Biến lưu trạng thái của tab Main
 local autoVoteEnabled = ConfigSystem.CurrentConfig.AutoVoteEnabled or false
 local autoRetryEnabled = ConfigSystem.CurrentConfig.AutoRetryEnabled or false
+local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -102,6 +104,22 @@ local function executeAutoVote()
             warn("Lỗi Auto Vote: " .. tostring(err))
         else
             print("Auto Vote executed successfully")
+        end
+    end
+end
+
+-- Hàm Auto Skip
+local function executeAutoSkip()
+    if autoSkipEnabled then
+        local success, err = pcall(function()
+            local args = {"SkipVoteYes"}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+        end)
+        
+        if not success then
+            warn("Lỗi Auto Skip: " .. tostring(err))
+        else
+            print("Auto Skip executed successfully")
         end
     end
 end
@@ -152,6 +170,31 @@ AutoPlaySection:AddToggle("AutoVoteToggle", {
     end
 })
 
+-- Toggle Auto Skip
+AutoPlaySection:AddToggle("AutoSkipToggle", {
+    Title = "Auto Skip",
+    Description = "Tự động bỏ qua",
+    Default = ConfigSystem.CurrentConfig.AutoSkipEnabled or false,
+    Callback = function(Value)
+        autoSkipEnabled = Value
+        ConfigSystem.CurrentConfig.AutoSkipEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if autoSkipEnabled then
+            Fluent:Notify({
+                Title = "Auto Skip Enabled",
+                Content = "Đã bật tự động bỏ qua",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Skip Disabled",
+                Content = "Đã tắt tự động bỏ qua",
+                Duration = 3
+            })
+        end
+    end
+})
 -- Toggle Auto Retry
 AutoPlaySection:AddToggle("AutoRetryToggle", {
     Title = "Auto Retry",
@@ -178,62 +221,6 @@ AutoPlaySection:AddToggle("AutoRetryToggle", {
     end
 })
 
--- Button thực thi thủ công Auto Vote
-AutoPlaySection:AddButton({
-    Title = "Vote Start Now",
-    Description = "Thực hiện vote start ngay lập tức",
-    Callback = function()
-        local success, err = pcall(function()
-            local args = {"StartVoteYes"}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
-        end)
-        
-        if success then
-            Fluent:Notify({
-                Title = "Vote Start",
-                Content = "Đã thực hiện vote start thành công",
-                Duration = 3
-            })
-        else
-            Fluent:Notify({
-                Title = "Vote Start Error",
-                Content = "Lỗi khi thực hiện vote start: " .. tostring(err),
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Button thực thi thủ công Auto Retry
-AutoPlaySection:AddButton({
-    Title = "Retry Now",
-    Description = "Thực hiện retry game ngay lập tức",
-    Callback = function()
-        local success, err = pcall(function()
-            local args = {{
-                Type = "Game",
-                Index = "Replay",
-                Mode = "Reward"
-            }}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-        end)
-        
-        if success then
-            Fluent:Notify({
-                Title = "Retry Game",
-                Content = "Đã thực hiện retry game thành công",
-                Duration = 3
-            })
-        else
-            Fluent:Notify({
-                Title = "Retry Game Error",
-                Content = "Lỗi khi thực hiện retry: " .. tostring(err),
-                Duration = 3
-            })
-        end
-    end
-})
-
 -- Loop chính cho Auto functions
 spawn(function()
     while true do
@@ -245,6 +232,10 @@ spawn(function()
         
         if autoRetryEnabled then
             executeAutoRetry()
+        end
+
+        if autoSkipEnabled then
+            executeAutoSkip()
         end
     end
 end)
