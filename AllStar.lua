@@ -372,7 +372,7 @@ AutoPlaySection:AddToggle("AutoLeaveToggle", {
 
 -- Dropdown Choose Speed
 SpeedSection:AddDropdown("ChooseSpeedDropdown", {
-    Title = "Choose Speed",
+    Title = "Speed",
     Description = "",
     Values = { "2", "3" },
     Multi = false,
@@ -418,7 +418,7 @@ local StorySection = MapTab:AddSection("Story")
 
 -- Dropdown Choose Map
 local MapDropdown = StorySection:AddDropdown("MapDropdown", {
-    Title = "Choose Map",
+    Title = "Map",
     Description = "",
     Values = {
         "Innovation Island",
@@ -452,7 +452,7 @@ local MapDropdown = StorySection:AddDropdown("MapDropdown", {
 
 -- Dropdown Choose Chapter
 local ChapterDropdown = StorySection:AddDropdown("ChapterDropdown", {
-    Title = "Choose Chapter",
+    Title = "Chapter",
     Description = "",
     Values = { "1", "2", "3", "4", "5", "6", "7" },
     Multi = false,
@@ -468,7 +468,7 @@ local ChapterDropdown = StorySection:AddDropdown("ChapterDropdown", {
 
 -- Dropdown Choose Difficulty
 local DifficultyDropdown = StorySection:AddDropdown("DifficultyDropdown", {
-    Title = "Choose Difficulty",
+    Title = "Difficulty",
     Description = "",
     Values = { "Normal", "Hard" },
     Multi = false,
