@@ -39,6 +39,11 @@ ConfigSystem.DefaultConfig = {
     SelectedChapter = 1,
     SelectedDifficulty = "Normal",
     AutoJoinEnabled = false,
+    --Challenge Settings
+    SelectedChallenge = "Challenge1",
+    SelectedChallengeDifficulty = "Normal",
+    SelectedChallengeMethod = "Start",
+    AutoJoinChallengeEnabled = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -91,6 +96,10 @@ local selectedMap = ConfigSystem.CurrentConfig.SelectedMap or "World1"
 local selectedChapter = ConfigSystem.CurrentConfig.SelectedChapter or 1
 local selectedDifficulty = ConfigSystem.CurrentConfig.SelectedDifficulty or "Normal"
 local autoJoinEnabled = ConfigSystem.CurrentConfig.AutoJoinEnabled or false
+local selectedChallenge = ConfigSystem.CurrentConfig.SelectedChallenge or "Challenge1"
+local selectedChallengeDifficulty = ConfigSystem.CurrentConfig.SelectedChallengeDifficulty or "Normal"
+local selectedChallengeMethod = ConfigSystem.CurrentConfig.SelectedChallengeMethod or "Start"
+local autoJoinChallengeEnabled = ConfigSystem.CurrentConfig.AutoJoinChallengeEnabled or false
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -237,6 +246,71 @@ local function executeSpeed()
         warn("Lỗi Speed: " .. tostring(err))
     else
         print("Speed executed successfully - Speed: " .. selectedSpeed)
+    end
+end
+
+-- Hàm Auto Join Challenge
+local function executeAutoJoinChallenge()
+    if not autoJoinChallengeEnabled then return end
+
+    local success, err = pcall(function()
+        -- Bước 1: Tương tác với Challenge Pod
+        local args1 = {
+            {
+                Type = "Lobby",
+                Object = workspace:WaitForChild("Map"):WaitForChild("Buildings"):WaitForChild("ChallengePods"):WaitForChild("Pod"):WaitForChild("Interact"),
+                Mode = "Pod"
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args1))
+
+        task.wait(1) -- Đợi 1 giây giữa các bước
+
+        -- Bước 2: Chọn challenge và difficulty
+        local args2 = {
+            {
+                Chapter = 1, -- Chapter is always 1 for challenges
+                Type = "Lobby",
+                Name = selectedChallenge,
+                Difficulty = selectedChallengeDifficulty,
+                Mode = "Pod",
+                Friend = false,
+                Update = true
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args2))
+
+        task.wait(1) -- Đợi 1 giây giữa các bước
+
+        -- Bước 3: Start hoặc Find Team
+        if selectedChallengeMethod == "Start" then
+            local args3 = {
+                {
+                    Start = true,
+                    Type = "Lobby",
+                    Update = true,
+                    Mode = "Pod"
+                }
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args3))
+        elseif selectedChallengeMethod == "Find Team" then
+            local args3 = {
+                {
+                    Mode = "Pod",
+                    Type = "Lobby",
+                    Matchmake = true,
+                    Update = true
+                }
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args3))
+        end
+    end)
+
+    if not success then
+        warn("Lỗi Auto Join Challenge: " .. tostring(err))
+    else
+        print("Auto Join Challenge executed successfully - Challenge: " ..
+            selectedChallenge .. ", Difficulty: " .. selectedChallengeDifficulty .. ", Method: " .. selectedChallengeMethod)
     end
 end
 
@@ -416,6 +490,9 @@ SpeedSection:AddToggle("EnableSpeedToggle", {
 -- Section Story trong tab Map
 local StorySection = MapTab:AddSection("Story")
 
+-- Section Challenge trong tab Map
+local ChallengeSection = MapTab:AddSection("Challenge")
+
 -- Dropdown Choose Map
 local MapDropdown = StorySection:AddDropdown("MapDropdown", {
     Title = "Map",
@@ -482,7 +559,7 @@ local DifficultyDropdown = StorySection:AddDropdown("DifficultyDropdown", {
     end
 })
 
--- Hàm Auto Join
+-- Hàm Auto Join Story
 local function executeAutoJoin()
     if not autoJoinEnabled then return end
 
@@ -565,6 +642,85 @@ StorySection:AddToggle("AutoJoinToggle", {
     end
 })
 
+-- Dropdown Choose Challenge
+ChallengeSection:AddDropdown("ChooseChallengeDropdown", {
+    Title = "Challenge",
+    Description = "",
+    Values = { "Flying Enemies", "Single Placement", "Unsellable" },
+    Multi = false,
+    Default = selectedChallenge == "Challenge1" and "Flying Enemies" or
+              selectedChallenge == "Challenge4" and "Single Placement" or
+              selectedChallenge == "Challenge3" and "Unsellable" or
+              "Flying Enemies",
+    Callback = function(Value)
+        if Value == "Flying Enemies" then
+            selectedChallenge = "Challenge1"
+        elseif Value == "Single Placement" then
+            selectedChallenge = "Challenge4"
+        elseif Value == "Unsellable" then
+            selectedChallenge = "Challenge3"
+        end
+        ConfigSystem.CurrentConfig.SelectedChallenge = selectedChallenge
+        ConfigSystem.SaveConfig()
+        print("Đã chọn thử thách: " .. selectedChallenge)
+    end
+})
+
+-- Dropdown Choose Difficulty (Challenge)
+ChallengeSection:AddDropdown("ChooseChallengeDifficultyDropdown", {
+    Title = "Difficulty",
+    Description = "",
+    Values = { "Normal", "Hard" },
+    Multi = false,
+    Default = selectedChallengeDifficulty,
+    Callback = function(Value)
+        selectedChallengeDifficulty = Value
+        ConfigSystem.CurrentConfig.SelectedChallengeDifficulty = selectedChallengeDifficulty
+        ConfigSystem.SaveConfig()
+        print("Đã chọn độ khó thử thách: " .. selectedChallengeDifficulty)
+    end
+})
+
+-- Dropdown Method
+ChallengeSection:AddDropdown("MethodDropdown", {
+    Title = "Method",
+    Description = "",
+    Values = { "Start", "Find Team" },
+    Multi = false,
+    Default = selectedChallengeMethod,
+    Callback = function(Value)
+        selectedChallengeMethod = Value
+        ConfigSystem.CurrentConfig.SelectedChallengeMethod = selectedChallengeMethod
+        ConfigSystem.SaveConfig()
+        print("Đã chọn phương thức: " .. selectedChallengeMethod)
+    end
+})
+
+-- Toggle Auto Join Challenge
+ChallengeSection:AddToggle("AutoJoinChallengeToggle", {
+    Title = "Auto Join",
+    Description = "",
+    Default = ConfigSystem.CurrentConfig.AutoJoinChallengeEnabled or false,
+    Callback = function(Value)
+        autoJoinChallengeEnabled = Value
+        ConfigSystem.CurrentConfig.AutoJoinChallengeEnabled = Value
+        ConfigSystem.SaveConfig()
+        if autoJoinChallengeEnabled then
+            Fluent:Notify({
+                Title = "Auto Join Challenge Enabled",
+                Content = "Đã bật tự động tham gia thử thách",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Join Challenge Disabled",
+                Content = "Đã tắt tự động tham gia thử thách",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- Loop Auto Play
 -- Loop cho Auto Vote
 task.spawn(function()
@@ -609,7 +765,7 @@ end)
 -- Loop cho Speed
 task.spawn(function()
     while true do
-        task.wait(1) -- Có thể điều chỉnh thời gian chờ nếu cần
+        task.wait(1)
         if speedEnabled then
             executeSpeed()
         end
@@ -633,6 +789,16 @@ task.spawn(function()
         task.wait(5)
         if autoJoinEnabled then
             executeAutoJoin()
+        end
+    end
+end)
+
+-- Loop cho Auto Join Challenge
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if autoJoinChallengeEnabled then
+            executeAutoJoinChallenge()
         end
     end
 end)
