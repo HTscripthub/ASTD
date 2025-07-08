@@ -22,13 +22,19 @@ end
 local ConfigSystem = {}
 ConfigSystem.FileName = "HTHubAllStar_" .. game:GetService("Players").LocalPlayer.Name .. ".json"
 ConfigSystem.DefaultConfig = {
+    --Tab Main
     -- Auto Play Settings
     AutoVoteEnabled = false,
     AutoRetryEnabled = false,
     AutoSkipEnabled = false,
     AutoNextEnabled = false,
     AutoLeaveEnabled = false,
-    -- Map Settings
+    -- Speed Settings
+    SpeedEnabled = false,
+    SelectedSpeed = 2,
+
+    --Tab Map
+    -- Story Settings
     SelectedMap = "World1",
     SelectedChapter = 1,
     SelectedDifficulty = "Normal",
@@ -77,6 +83,8 @@ local autoRetryEnabled = ConfigSystem.CurrentConfig.AutoRetryEnabled or false
 local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false
 local autoNextEnabled = ConfigSystem.CurrentConfig.AutoNextEnabled or false
 local autoLeaveEnabled = ConfigSystem.CurrentConfig.AutoLeaveEnabled or false
+local speedEnabled = ConfigSystem.CurrentConfig.SpeedEnabled or false
+local selectedSpeed = ConfigSystem.CurrentConfig.SelectedSpeed or 2
 
 -- Biến Lưu trạng thái của tab Map
 local selectedMap = ConfigSystem.CurrentConfig.SelectedMap or "World1"
@@ -112,6 +120,9 @@ local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "rbxassetid://133
 -- Tab Main ( Tab thứ 1 )
 -- Section Auto Play trong tab Main
 local AutoPlaySection = MainTab:AddSection("Auto Play")
+
+-- Section Speed trong tab Main
+local SpeedSection = MainTab:AddSection("Speed")
 
 -- Hàm Auto Vote Start
 local function executeAutoVote()
@@ -207,6 +218,25 @@ local function executeAutoLeave()
         else
             print("Auto Leave executed successfully")
         end
+    end
+end
+
+-- Hàm Speed
+local function executeSpeed()
+    if not speedEnabled then return end
+
+    local success, err = pcall(function()
+        local args = {{
+            Index = selectedSpeed,
+            Type = "Speed"
+        }}
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+    end)
+
+    if not success then
+        warn("Lỗi Speed: " .. tostring(err))
+    else
+        print("Speed executed successfully - Speed: " .. selectedSpeed)
     end
 end
 
@@ -334,6 +364,48 @@ AutoPlaySection:AddToggle("AutoLeaveToggle", {
             Fluent:Notify({
                 Title = "Auto Leave Disabled",
                 Content = "Đã tắt tự động rời trận",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Dropdown Choose Speed
+SpeedSection:AddDropdown("ChooseSpeedDropdown", {
+    Title = "Choose Speed",
+    Description = "",
+    Values = { "2", "3" },
+    Multi = false,
+    Default = tostring(selectedSpeed),
+    Callback = function(Value)
+        selectedSpeed = tonumber(Value)
+        ConfigSystem.CurrentConfig.SelectedSpeed = selectedSpeed
+        ConfigSystem.SaveConfig()
+
+        print("Đã chọn tốc độ: " .. selectedSpeed)
+    end
+})
+
+-- Toggle Enable Speed
+SpeedSection:AddToggle("EnableSpeedToggle", {
+    Title = "Enable Speed",
+    Description = "",
+    Default = ConfigSystem.CurrentConfig.SpeedEnabled or false,
+    Callback = function(Value)
+        speedEnabled = Value
+        ConfigSystem.CurrentConfig.SpeedEnabled = Value
+        ConfigSystem.SaveConfig()
+
+        if speedEnabled then
+            Fluent:Notify({
+                Title = "Speed Enabled",
+                Content = "Đã bật tốc độ",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Speed Disabled",
+                Content = "Đã tắt tốc độ",
                 Duration = 3
             })
         end
@@ -530,6 +602,16 @@ task.spawn(function()
         task.wait(2)
         if autoNextEnabled then
             executeAutoNext()
+        end
+    end
+end)
+
+-- Loop cho Speed
+task.spawn(function()
+    while true do
+        task.wait(1) -- Có thể điều chỉnh thời gian chờ nếu cần
+        if speedEnabled then
+            executeSpeed()
         end
     end
 end)
