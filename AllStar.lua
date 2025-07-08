@@ -213,7 +213,7 @@ end
 -- Toggle Auto Vote Start
 AutoPlaySection:AddToggle("AutoVoteToggle", {
     Title = "Auto Vote Start",
-    Description = "Tự động bầu chọn bắt đầu game",
+    Description = "",
     Default = ConfigSystem.CurrentConfig.AutoVoteEnabled or false,
     Callback = function(Value)
         autoVoteEnabled = Value
@@ -239,7 +239,7 @@ AutoPlaySection:AddToggle("AutoVoteToggle", {
 -- Toggle Auto Retry
 AutoPlaySection:AddToggle("AutoRetryToggle", {
     Title = "Auto Retry",
-    Description = "Tự động thử lại game khi kết thúc",
+    Description = "",
     Default = ConfigSystem.CurrentConfig.AutoRetryEnabled or false,
     Callback = function(Value)
         autoRetryEnabled = Value
@@ -265,7 +265,7 @@ AutoPlaySection:AddToggle("AutoRetryToggle", {
 -- Toggle Auto Skip
 AutoPlaySection:AddToggle("AutoSkipToggle", {
     Title = "Auto Skip",
-    Description = "Tự động bỏ qua lượt",
+    Description = "",
     Default = ConfigSystem.CurrentConfig.AutoSkipEnabled or false,
     Callback = function(Value)
         autoSkipEnabled = Value
@@ -291,7 +291,7 @@ AutoPlaySection:AddToggle("AutoSkipToggle", {
 -- Toggle Auto Next
 AutoPlaySection:AddToggle("AutoNextToggle", {
     Title = "Auto Next",
-    Description = "Tự động chuyển màn tiếp theo",
+    Description = "",
     Default = ConfigSystem.CurrentConfig.AutoNextEnabled or false,
     Callback = function(Value)
         autoNextEnabled = Value
@@ -317,7 +317,7 @@ AutoPlaySection:AddToggle("AutoNextToggle", {
 -- Toggle Auto Leave
 AutoPlaySection:AddToggle("AutoLeaveToggle", {
     Title = "Auto Leave",
-    Description = "Tự động rời trận đấu",
+    Description = "",
     Default = ConfigSystem.CurrentConfig.AutoLeaveEnabled or false,
     Callback = function(Value)
         autoLeaveEnabled = Value
@@ -347,7 +347,7 @@ local StorySection = MapTab:AddSection("Story")
 -- Dropdown Choose Map
 local MapDropdown = StorySection:AddDropdown("MapDropdown", {
     Title = "Choose Map",
-    Description = "Chọn map để chơi",
+    Description = "",
     Values = {
         "Innovation Island",
         "City Of Voldstandig",
@@ -381,7 +381,7 @@ local MapDropdown = StorySection:AddDropdown("MapDropdown", {
 -- Dropdown Choose Chapter
 local ChapterDropdown = StorySection:AddDropdown("ChapterDropdown", {
     Title = "Choose Chapter",
-    Description = "Chọn chapter để chơi",
+    Description = "",
     Values = { "1", "2", "3", "4", "5", "6", "7" },
     Multi = false,
     Default = tostring(selectedChapter),
@@ -397,7 +397,7 @@ local ChapterDropdown = StorySection:AddDropdown("ChapterDropdown", {
 -- Dropdown Choose Difficulty
 local DifficultyDropdown = StorySection:AddDropdown("DifficultyDropdown", {
     Title = "Choose Difficulty",
-    Description = "Chọn độ khó",
+    Description = "",
     Values = { "Normal", "Hard" },
     Multi = false,
     Default = selectedDifficulty,
@@ -470,7 +470,7 @@ end
 -- Toggle Auto Join
 StorySection:AddToggle("AutoJoinToggle", {
     Title = "Auto Join",
-    Description = "Tự động tham gia game với cấu hình đã chọn",
+    Description = "",
     Default = ConfigSystem.CurrentConfig.AutoJoinEnabled or false,
     Callback = function(Value)
         autoJoinEnabled = Value
@@ -493,31 +493,62 @@ StorySection:AddToggle("AutoJoinToggle", {
     end
 })
 
--- Loop chính cho Auto functions
-spawn(function()
+-- Loop Auto Play
+-- Loop cho Auto Vote
+task.spawn(function()
     while true do
-        wait(2) -- Đợi 2 giây giữa mỗi lần thực hiện để tránh spam
-
+        task.wait(1)
         if autoVoteEnabled then
             executeAutoVote()
         end
+    end
+end)
 
+-- Loop cho Auto Retry
+task.spawn(function()
+    while true do
+        task.wait(3)
         if autoRetryEnabled then
             executeAutoRetry()
         end
+    end
+end)
 
+-- Loop cho Auto Skip
+task.spawn(function()
+    while true do
+        task.wait(1)
         if autoSkipEnabled then
             executeAutoSkip()
         end
+    end
+end)
 
+-- Loop cho Auto Next
+task.spawn(function()
+    while true do
+        task.wait(2)
         if autoNextEnabled then
             executeAutoNext()
         end
+    end
+end)
 
+-- Loop cho Auto Leave
+task.spawn(function()
+    while true do
+        task.wait(2)
         if autoLeaveEnabled then
             executeAutoLeave()
         end
+    end
+end)
 
+-- Loop cho Map
+-- Loop cho Auto Join
+task.spawn(function()
+    while true do
+        task.wait(5)
         if autoJoinEnabled then
             executeAutoJoin()
         end
