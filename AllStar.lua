@@ -23,7 +23,7 @@ ConfigSystem.DefaultConfig = {
     -- Auto Play Settings
     AutoVoteEnabled = false,
     AutoRetryEnabled = false,
-    AutoSkipEnabled = false
+    AutoSkipEnabled = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -108,21 +108,6 @@ local function executeAutoVote()
     end
 end
 
--- Hàm Auto Skip
-local function executeAutoSkip()
-    if autoSkipEnabled then
-        local success, err = pcall(function()
-            local args = {"SkipVoteYes"}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
-        end)
-        
-        if not success then
-            warn("Lỗi Auto Skip: " .. tostring(err))
-        else
-            print("Auto Skip executed successfully")
-        end
-    end
-end
 
 -- Hàm Auto Retry
 local function executeAutoRetry()
@@ -173,7 +158,7 @@ AutoPlaySection:AddToggle("AutoVoteToggle", {
 -- Toggle Auto Skip
 AutoPlaySection:AddToggle("AutoSkipToggle", {
     Title = "Auto Skip",
-    Description = "Tự động bỏ qua",
+    Description = "Tự động bỏ qua vote",
     Default = ConfigSystem.CurrentConfig.AutoSkipEnabled or false,
     Callback = function(Value)
         autoSkipEnabled = Value
@@ -183,18 +168,19 @@ AutoPlaySection:AddToggle("AutoSkipToggle", {
         if autoSkipEnabled then
             Fluent:Notify({
                 Title = "Auto Skip Enabled",
-                Content = "Đã bật tự động bỏ qua",
+                Content = "Đã bật tự động bỏ qua vote",
                 Duration = 3
             })
         else
             Fluent:Notify({
                 Title = "Auto Skip Disabled",
-                Content = "Đã tắt tự động bỏ qua",
+                Content = "Đã tắt tự động bỏ qua vote",
                 Duration = 3
             })
         end
     end
 })
+
 -- Toggle Auto Retry
 AutoPlaySection:AddToggle("AutoRetryToggle", {
     Title = "Auto Retry",
@@ -230,12 +216,20 @@ spawn(function()
             executeAutoVote()
         end
         
+        if autoSkipEnabled then
+            local success, err = pcall(function()
+                local args = {"SkipVoteYes"}
+                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+            end)
+            if not success then
+                warn("Lỗi Auto Skip: " .. tostring(err))
+            else
+                print("Auto Skip executed successfully")
+            end
+        end
+        
         if autoRetryEnabled then
             executeAutoRetry()
-        end
-
-        if autoSkipEnabled then
-            executeAutoSkip()
         end
     end
 end)
