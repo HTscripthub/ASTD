@@ -1,8 +1,10 @@
 -- Load UI Library với error handling
 local success, err = pcall(function()
     Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-    SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-    InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+    SaveManager = loadstring(game:HttpGet(
+        "https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+    InterfaceManager = loadstring(game:HttpGet(
+        "https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 end)
 
 if not success then
@@ -24,8 +26,13 @@ ConfigSystem.DefaultConfig = {
     AutoVoteEnabled = false,
     AutoRetryEnabled = false,
     AutoSkipEnabled = false,
-    AutoNextEnabled = false, -- Add new Auto Next setting
-    AutoLeaveEnabled = false, -- Add new Auto Leave setting
+    AutoNextEnabled = false,
+    AutoLeaveEnabled = false,
+    -- Map Settings
+    SelectedMap = "World1",
+    SelectedChapter = 1,
+    SelectedDifficulty = "Normal",
+    AutoJoinEnabled = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -49,7 +56,7 @@ ConfigSystem.LoadConfig = function()
         end
         return nil
     end)
-    
+
     if success and content then
         local data = game:GetService("HttpService"):JSONDecode(content)
         ConfigSystem.CurrentConfig = data
@@ -68,8 +75,14 @@ ConfigSystem.LoadConfig()
 local autoVoteEnabled = ConfigSystem.CurrentConfig.AutoVoteEnabled or false
 local autoRetryEnabled = ConfigSystem.CurrentConfig.AutoRetryEnabled or false
 local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false
-local autoNextEnabled = ConfigSystem.CurrentConfig.AutoNextEnabled or false -- Initialize autoNextEnabled
-local autoLeaveEnabled = ConfigSystem.CurrentConfig.AutoLeaveEnabled or false -- Initialize autoLeaveEnabled
+local autoNextEnabled = ConfigSystem.CurrentConfig.AutoNextEnabled or false
+local autoLeaveEnabled = ConfigSystem.CurrentConfig.AutoLeaveEnabled or false
+
+-- Biến Lưu trạng thái của tab Map
+local selectedMap = ConfigSystem.CurrentConfig.SelectedMap or "World1"
+local selectedChapter = ConfigSystem.CurrentConfig.SelectedChapter or 1
+local selectedDifficulty = ConfigSystem.CurrentConfig.SelectedDifficulty or "Normal"
+local autoJoinEnabled = ConfigSystem.CurrentConfig.AutoJoinEnabled or false
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -89,10 +102,14 @@ local Window = Fluent:CreateWindow({
 
 -- Tạo Tab Main
 local MainTab = Window:AddTab({ Title = "Main", Icon = "rbxassetid://13311802307" })
+
+-- Tạo Tab Map
+local MapTab = Window:AddTab({ Title = "Map", Icon = "rbxassetid://13311804137" })
+
 -- Tạo Tab Settings
 local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "rbxassetid://13311798537" })
 
--- Tab Main
+-- Tab Main ( Tab thứ 1 )
 -- Section Auto Play trong tab Main
 local AutoPlaySection = MainTab:AddSection("Auto Play")
 
@@ -100,10 +117,11 @@ local AutoPlaySection = MainTab:AddSection("Auto Play")
 local function executeAutoVote()
     if autoVoteEnabled then
         local success, err = pcall(function()
-            local args = {"StartVoteYes"}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+            local args = { "StartVoteYes" }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(
+                args))
         end)
-        
+
         if not success then
             warn("Lỗi Auto Vote: " .. tostring(err))
         else
@@ -117,14 +135,15 @@ end
 local function executeAutoRetry()
     if autoRetryEnabled then
         local success, err = pcall(function()
-            local args = {{
+            local args = { {
                 Type = "Game",
                 Index = "Replay",
                 Mode = "Reward"
-            }}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+            } }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
+                args))
         end)
-        
+
         if not success then
             warn("Lỗi Auto Retry: " .. tostring(err))
         else
@@ -137,8 +156,9 @@ end
 local function executeAutoSkip()
     if autoSkipEnabled then
         local success, err = pcall(function()
-            local args = {"SkipVoteYes"}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+            local args = { "SkipVoteYes" }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(
+                args))
         end)
 
         if not success then
@@ -153,12 +173,13 @@ end
 local function executeAutoNext()
     if autoNextEnabled then
         local success, err = pcall(function()
-            local args = {{
+            local args = { {
                 Type = "Game",
                 Index = "Level",
                 Mode = "Reward"
-            }}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+            } }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
+                args))
         end)
 
         if not success then
@@ -173,11 +194,11 @@ end
 local function executeAutoLeave()
     if autoLeaveEnabled then
         local success, err = pcall(function()
-            local args = {{
+            local args = { {
                 Type = "Game",
                 Index = "Return",
                 Mode = "Reward"
-            }}
+            } }
             game:GetService("ReplicatedStorage").Remotes.GetFunction:InvokeServer(unpack(args))
         end)
 
@@ -198,7 +219,7 @@ AutoPlaySection:AddToggle("AutoVoteToggle", {
         autoVoteEnabled = Value
         ConfigSystem.CurrentConfig.AutoVoteEnabled = Value
         ConfigSystem.SaveConfig()
-        
+
         if autoVoteEnabled then
             Fluent:Notify({
                 Title = "Auto Vote Start Enabled",
@@ -224,7 +245,7 @@ AutoPlaySection:AddToggle("AutoRetryToggle", {
         autoRetryEnabled = Value
         ConfigSystem.CurrentConfig.AutoRetryEnabled = Value
         ConfigSystem.SaveConfig()
-        
+
         if autoRetryEnabled then
             Fluent:Notify({
                 Title = "Auto Retry Enabled",
@@ -250,7 +271,7 @@ AutoPlaySection:AddToggle("AutoSkipToggle", {
         autoSkipEnabled = Value
         ConfigSystem.CurrentConfig.AutoSkipEnabled = Value
         ConfigSystem.SaveConfig()
-        
+
         if autoSkipEnabled then
             Fluent:Notify({
                 Title = "Auto Skip Enabled",
@@ -276,7 +297,7 @@ AutoPlaySection:AddToggle("AutoNextToggle", {
         autoNextEnabled = Value
         ConfigSystem.CurrentConfig.AutoNextEnabled = Value
         ConfigSystem.SaveConfig()
-        
+
         if autoNextEnabled then
             Fluent:Notify({
                 Title = "Auto Next Enabled",
@@ -302,7 +323,7 @@ AutoPlaySection:AddToggle("AutoLeaveToggle", {
         autoLeaveEnabled = Value
         ConfigSystem.CurrentConfig.AutoLeaveEnabled = Value
         ConfigSystem.SaveConfig()
-        
+
         if autoLeaveEnabled then
             Fluent:Notify({
                 Title = "Auto Leave Enabled",
@@ -319,15 +340,168 @@ AutoPlaySection:AddToggle("AutoLeaveToggle", {
     end
 })
 
+-- Tab Map ( Tab thứ 2 )
+-- Section Story trong tab Map
+local StorySection = MapTab:AddSection("Story")
+
+-- Dropdown Choose Map
+local MapDropdown = StorySection:AddDropdown("MapDropdown", {
+    Title = "Choose Map",
+    Description = "Chọn map để chơi",
+    Values = {
+        "Innovation Island",
+        "City Of Voldstandig",
+        "Future City",
+        "Hidden Storm Village"
+    },
+    Multi = false,
+    Default = selectedMap == "World1" and "Innovation Island" or
+        selectedMap == "World2" and "City Of Voldstandig" or
+        selectedMap == "World3" and "Future City" or
+        selectedMap == "World4" and "Hidden Storm Village" or
+        "Innovation Island",
+    Callback = function(Value)
+        if Value == "Innovation Island" then
+            selectedMap = "World1"
+        elseif Value == "City Of Voldstandig" then
+            selectedMap = "World2"
+        elseif Value == "Future City" then
+            selectedMap = "World3"
+        elseif Value == "Hidden Storm Village" then
+            selectedMap = "World4"
+        end
+
+        ConfigSystem.CurrentConfig.SelectedMap = selectedMap
+        ConfigSystem.SaveConfig()
+
+        print("Đã chọn map: " .. selectedMap)
+    end
+})
+
+-- Dropdown Choose Chapter
+local ChapterDropdown = StorySection:AddDropdown("ChapterDropdown", {
+    Title = "Choose Chapter",
+    Description = "Chọn chapter để chơi",
+    Values = { "1", "2", "3", "4", "5", "6", "7" },
+    Multi = false,
+    Default = tostring(selectedChapter),
+    Callback = function(Value)
+        selectedChapter = tonumber(Value)
+        ConfigSystem.CurrentConfig.SelectedChapter = selectedChapter
+        ConfigSystem.SaveConfig()
+
+        print("Đã chọn chapter: " .. selectedChapter)
+    end
+})
+
+-- Dropdown Choose Difficulty
+local DifficultyDropdown = StorySection:AddDropdown("DifficultyDropdown", {
+    Title = "Choose Difficulty",
+    Description = "Chọn độ khó",
+    Values = { "Normal", "Hard" },
+    Multi = false,
+    Default = selectedDifficulty,
+    Callback = function(Value)
+        selectedDifficulty = Value
+        ConfigSystem.CurrentConfig.SelectedDifficulty = selectedDifficulty
+        ConfigSystem.SaveConfig()
+
+        print("Đã chọn độ khó: " .. selectedDifficulty)
+    end
+})
+
+-- Hàm Auto Join
+local function executeAutoJoin()
+    if not autoJoinEnabled then return end
+
+    local success, err = pcall(function()
+        -- Bước 1: Tương tác với Story Pod
+        local args1 = {
+            {
+                Type = "Lobby",
+                Object = workspace:WaitForChild("Map"):WaitForChild("Buildings"):WaitForChild("Pods"):WaitForChild(
+                    "StoryPod"):WaitForChild("Interact"),
+                Mode = "Pod"
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
+            args1))
+
+        wait(1) -- Đợi 1 giây giữa các bước
+
+        -- Bước 2: Chọn map, chapter và difficulty
+        local args2 = {
+            {
+                Chapter = selectedChapter,
+                Type = "Lobby",
+                Name = selectedMap,
+                Difficulty = selectedDifficulty,
+                Mode = "Pod",
+                Friend = false,
+                Update = true
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
+            args2))
+
+        wait(1) -- Đợi 1 giây giữa các bước
+
+        -- Bước 3: Bắt đầu game
+        local args3 = {
+            {
+                Start = true,
+                Type = "Lobby",
+                Update = true,
+                Mode = "Pod"
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
+            args3))
+    end)
+
+    if not success then
+        warn("Lỗi Auto Join: " .. tostring(err))
+    else
+        print("Auto Join executed successfully - Map: " ..
+            selectedMap .. ", Chapter: " .. selectedChapter .. ", Difficulty: " .. selectedDifficulty)
+    end
+end
+
+-- Toggle Auto Join
+StorySection:AddToggle("AutoJoinToggle", {
+    Title = "Auto Join",
+    Description = "Tự động tham gia game với cấu hình đã chọn",
+    Default = ConfigSystem.CurrentConfig.AutoJoinEnabled or false,
+    Callback = function(Value)
+        autoJoinEnabled = Value
+        ConfigSystem.CurrentConfig.AutoJoinEnabled = Value
+        ConfigSystem.SaveConfig()
+
+        if autoJoinEnabled then
+            Fluent:Notify({
+                Title = "Auto Join Enabled",
+                Content = "Đã bật tự động tham gia game",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Join Disabled",
+                Content = "Đã tắt tự động tham gia game",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- Loop chính cho Auto functions
 spawn(function()
     while true do
         wait(2) -- Đợi 2 giây giữa mỗi lần thực hiện để tránh spam
-        
+
         if autoVoteEnabled then
             executeAutoVote()
         end
-        
+
         if autoRetryEnabled then
             executeAutoRetry()
         end
@@ -336,12 +510,16 @@ spawn(function()
             executeAutoSkip()
         end
 
-        if autoNextEnabled then -- Add Auto Next to main loop
+        if autoNextEnabled then
             executeAutoNext()
         end
 
-        if autoLeaveEnabled then -- Add Auto Leave to main loop
+        if autoLeaveEnabled then
             executeAutoLeave()
+        end
+
+        if autoJoinEnabled then
+            executeAutoJoin()
         end
     end
 end)
@@ -384,7 +562,7 @@ AutoSaveConfig()
 
 -- Thêm event listener để lưu ngay khi thay đổi giá trị
 local function setupSaveEvents()
-    for _, tab in pairs({MainTab, SettingsTab}) do
+    for _, tab in pairs({ MainTab, SettingsTab }) do
         if tab and tab._components then
             for _, element in pairs(tab._components) do
                 if element and element.OnChanged then
@@ -405,12 +583,12 @@ setupSaveEvents()
 -- Tạo logo để mở lại UI khi đã minimize
 task.spawn(function()
     local success, errorMsg = pcall(function()
-        if not getgenv().LoadedMobileUI == true then 
+        if not getgenv().LoadedMobileUI == true then
             getgenv().LoadedMobileUI = true
             local OpenUI = Instance.new("ScreenGui")
             local ImageButton = Instance.new("ImageButton")
             local UICorner = Instance.new("UICorner")
-            
+
             -- Kiểm tra môi trường
             if syn and syn.protect_gui then
                 syn.protect_gui(OpenUI)
@@ -420,29 +598,29 @@ task.spawn(function()
             else
                 OpenUI.Parent = game:GetService("CoreGui")
             end
-            
+
             OpenUI.Name = "OpenUI"
             OpenUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            
+
             ImageButton.Parent = OpenUI
-            ImageButton.BackgroundColor3 = Color3.fromRGB(105,105,105)
+            ImageButton.BackgroundColor3 = Color3.fromRGB(105, 105, 105)
             ImageButton.BackgroundTransparency = 0.8
-            ImageButton.Position = UDim2.new(0.9,0,0.1,0)
-            ImageButton.Size = UDim2.new(0,50,0,50)
+            ImageButton.Position = UDim2.new(0.9, 0, 0.1, 0)
+            ImageButton.Size = UDim2.new(0, 50, 0, 50)
             ImageButton.Image = "rbxassetid://13099788281" -- Logo HT Hub
             ImageButton.Draggable = true
             ImageButton.Transparency = 0.2
-            
-            UICorner.CornerRadius = UDim.new(0,200)
+
+            UICorner.CornerRadius = UDim.new(0, 200)
             UICorner.Parent = ImageButton
-            
+
             -- Khi click vào logo sẽ mở lại UI
             ImageButton.MouseButton1Click:Connect(function()
-                game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.LeftControl,false,game)
+                game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.LeftControl, false, game)
             end)
         end
     end)
-    
+
     if not success then
         warn("Lỗi khi tạo nút Logo UI: " .. tostring(errorMsg))
     end
