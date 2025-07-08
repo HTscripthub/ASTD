@@ -44,6 +44,11 @@ ConfigSystem.DefaultConfig = {
     SelectedChallengeDifficulty = "Normal",
     SelectedChallengeMethod = "Start",
     AutoJoinChallengeEnabled = false,
+
+    --Tab Auto Place
+    -- Auto Place Settings
+    PlaceMethod = "first",
+    AutoPlaceEnabled = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -101,6 +106,12 @@ local selectedChallengeDifficulty = ConfigSystem.CurrentConfig.SelectedChallenge
 local selectedChallengeMethod = ConfigSystem.CurrentConfig.SelectedChallengeMethod or "Start"
 local autoJoinChallengeEnabled = ConfigSystem.CurrentConfig.AutoJoinChallengeEnabled or false
 
+-- Biến lưu trạng thái của tab Auto Place
+local placeMethod = ConfigSystem.CurrentConfig.PlaceMethod or "first"
+local autoPlaceEnabled = ConfigSystem.CurrentConfig.AutoPlaceEnabled or false
+local availableUnits = {}
+local placePositions = {}
+
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
 
@@ -122,6 +133,9 @@ local MainTab = Window:AddTab({ Title = "Main", Icon = "rbxassetid://13311802307
 
 -- Tạo Tab Map
 local MapTab = Window:AddTab({ Title = "Map", Icon = "rbxassetid://13311804137" })
+
+-- Tạo Tab Auto Place
+local AutoPlaceTab = Window:AddTab({ Title = "Auto Place", Icon = "rbxassetid://13311799499" })
 
 -- Tạo Tab Settings
 local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "rbxassetid://13311798537" })
@@ -720,6 +734,273 @@ ChallengeSection:AddToggle("AutoJoinChallengeToggle", {
         end
     end
 })
+
+-- Tab Auto Place ( Tab Thứ 3 )
+-- Section Unit Place trong tab Auto Place
+local UnitPlaceSection = AutoPlaceTab:AddSection("Unit Place")
+
+-- Hàm scan units từ AttackVFX
+local function scanAvailableUnits()
+    local success, err = pcall(function()
+        availableUnits = {}
+        local attackVFX = game:GetService("ReplicatedStorage"):FindFirstChild("AttackVFX")
+        
+        if attackVFX then
+            for _, unit in pairs(attackVFX:GetChildren()) do
+                if unit:IsA("Folder") or unit:IsA("Model") then
+                    table.insert(availableUnits, unit.Name)
+                end
+            end
+        end
+        
+        print("Đã scan được " .. #availableUnits .. " units:")
+        for i, unitName in ipairs(availableUnits) do
+            print(i .. ". " .. unitName)
+        end
+    end)
+    
+    if not success then
+        warn("Lỗi khi scan units: " .. tostring(err))
+    end
+end
+
+-- Hàm lấy tọa độ theo method
+local function getPlacePositions(method)
+    local positions = {}
+    local success, err = pcall(function()
+        local paths = workspace:FindFirstChild("Paths")
+        if not paths then
+            warn("Không tìm thấy Paths trong workspace")
+            return
+        end
+        
+        local path1 = paths:FindFirstChild("1")
+        if not path1 then
+            warn("Không tìm thấy Path 1")
+            return
+        end
+        
+        local basePosition
+        if method == "first" then
+            local point3 = path1:FindFirstChild("3")
+            if point3 then
+                basePosition = point3.CFrame
+            end
+        elseif method == "mid" then
+            local point7 = path1:FindFirstChild("7")
+            if point7 then
+                basePosition = point7.CFrame
+            end
+        elseif method == "last" then
+            local point11 = path1:FindFirstChild("11")
+            if point11 then
+                basePosition = point11.CFrame
+            end
+        end
+        
+        if basePosition then
+            -- Tạo vùng xung quanh vị trí base (3x3 grid)
+            local offsets = {
+                {0, 0, 0},      -- Trung tâm
+                {-5, 0, 0},     -- Trái
+                {5, 0, 0},      -- Phải
+                {0, 0, -5},     -- Trước
+                {0, 0, 5},      -- Sau
+                {-5, 0, -5},    -- Trái-trước
+                {5, 0, -5},     -- Phải-trước
+                {-5, 0, 5},     -- Trái-sau
+                {5, 0, 5},      -- Phải-sau
+            }
+            
+            for _, offset in ipairs(offsets) do
+                local newPosition = basePosition + Vector3.new(offset[1], offset[2], offset[3])
+                table.insert(positions, newPosition)
+            end
+        end
+    end)
+    
+    if not success then
+        warn("Lỗi khi lấy tọa độ: " .. tostring(err))
+    end
+    
+    return positions
+end
+
+-- Hàm place unit
+local function placeUnit(unitName, position)
+    local success, err = pcall(function()
+        local args = {
+            "GameStuff",
+            {
+                "Summon",
+                unitName,
+                position
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))
+    end)
+    
+    if not success then
+        warn("Lỗi khi place unit " .. unitName .. ": " .. tostring(err))
+    else
+        print("Đã place unit: " .. unitName .. " tại vị trí: " .. tostring(position))
+    end
+end
+
+-- Hàm Auto Place chính
+local function executeAutoPlace()
+    if not autoPlaceEnabled then return end
+    
+    local success, err = pcall(function()
+        -- Scan units mỗi lần chạy để cập nhật
+        scanAvailableUnits()
+        
+        -- Lấy vị trí place theo method
+        placePositions = getPlacePositions(placeMethod)
+        
+        if #placePositions == 0 then
+            warn("Không có vị trí nào để place units")
+            return
+        end
+        
+        if #availableUnits == 0 then
+            warn("Không có units nào để place")
+            return
+        end
+        
+        -- Place từng unit vào các vị trí
+        local positionIndex = 1
+        for _, unitName in ipairs(availableUnits) do
+            if positionIndex <= #placePositions then
+                placeUnit(unitName, placePositions[positionIndex])
+                positionIndex = positionIndex + 1
+                task.wait(0.5) -- Đợi 0.5 giây giữa mỗi lần place
+            else
+                break -- Hết vị trí để place
+            end
+        end
+    end)
+    
+    if not success then
+        warn("Lỗi Auto Place: " .. tostring(err))
+    end
+end
+
+-- Dropdown Method
+local MethodDropdown = UnitPlaceSection:AddDropdown("MethodDropdown", {
+    Title = "Method",
+    Description = "Chọn phương pháp place unit",
+    Values = {"first", "mid", "last"},
+    Multi = false,
+    Default = placeMethod,
+    Callback = function(Value)
+        placeMethod = Value
+        ConfigSystem.CurrentConfig.PlaceMethod = placeMethod
+        ConfigSystem.SaveConfig()
+        
+        print("Đã chọn method: " .. placeMethod)
+        
+        -- Cập nhật vị trí place khi thay đổi method
+        if autoPlaceEnabled then
+            placePositions = getPlacePositions(placeMethod)
+        end
+    end
+})
+
+-- Toggle Auto Place
+UnitPlaceSection:AddToggle("AutoPlaceToggle", {
+    Title = "Auto Place",
+    Description = "Tự động place units theo method đã chọn",
+    Default = ConfigSystem.CurrentConfig.AutoPlaceEnabled or false,
+    Callback = function(Value)
+        autoPlaceEnabled = Value
+        ConfigSystem.CurrentConfig.AutoPlaceEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if autoPlaceEnabled then
+            Fluent:Notify({
+                Title = "Auto Place Enabled",
+                Content = "Đã bật tự động place units - Method: " .. placeMethod,
+                Duration = 3
+            })
+            
+            -- Scan units và lấy vị trí ngay khi bật
+            scanAvailableUnits()
+            placePositions = getPlacePositions(placeMethod)
+        else
+            Fluent:Notify({
+                Title = "Auto Place Disabled",
+                Content = "Đã tắt tự động place units",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Button để scan units thủ công
+UnitPlaceSection:AddButton({
+    Title = "Scan Units",
+    Description = "Quét lại danh sách units có sẵn",
+    Callback = function()
+        scanAvailableUnits()
+        Fluent:Notify({
+            Title = "Units Scanned",
+            Content = "Đã quét được " .. #availableUnits .. " units",
+            Duration = 3
+        })
+    end
+})
+
+-- Button để test place position
+UnitPlaceSection:AddButton({
+    Title = "Test Position",
+    Description = "Kiểm tra vị trí place theo method hiện tại",
+    Callback = function()
+        local positions = getPlacePositions(placeMethod)
+        
+        if #positions > 0 then
+            Fluent:Notify({
+                Title = "Position Test",
+                Content = "Method " .. placeMethod .. " có " .. #positions .. " vị trí place",
+                Duration = 3
+            })
+            
+            -- In tọa độ vào console
+            print("Vị trí place cho method " .. placeMethod .. ":")
+            for i, pos in ipairs(positions) do
+                print(i .. ". " .. tostring(pos))
+            end
+        else
+            Fluent:Notify({
+                Title = "Position Test Failed",
+                Content = "Không tìm thấy vị trí place cho method " .. placeMethod,
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Thêm thông tin hiển thị
+UnitPlaceSection:AddParagraph({
+    Title = "Thông tin Auto Place",
+    Content = "Method first: Place tại điểm 3\nMethod mid: Place tại điểm 7\nMethod last: Place tại điểm 11"
+})
+
+-- Scan units ban đầu khi script chạy
+task.spawn(function()
+    task.wait(2) -- Đợi 2 giây để game load xong
+    scanAvailableUnits()
+end)
+
+-- Loop cho Auto Place
+task.spawn(function()
+    while true do
+        task.wait(3) -- Kiểm tra mỗi 3 giây
+        if autoPlaceEnabled then
+            executeAutoPlace()
+        end
+    end
+end)
 
 -- Loop Auto Play
 -- Loop cho Auto Vote
