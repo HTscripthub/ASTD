@@ -236,7 +236,7 @@ spawn(function()
             executeAutoRetry()
         end
 
-        if autoSkipEnabled then 
+        if autoSkipEnabled then
             executeAutoSkip()
         end
     end
