@@ -65,7 +65,7 @@ ConfigSystem.LoadConfig()
 -- Biến lưu trạng thái của tab Main
 local autoVoteEnabled = ConfigSystem.CurrentConfig.AutoVoteEnabled or false
 local autoRetryEnabled = ConfigSystem.CurrentConfig.AutoRetryEnabled or false
-local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false
+local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false 
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -129,6 +129,22 @@ local function executeAutoRetry()
     end
 end
 
+-- Hàm Auto Skip
+local function executeAutoSkip()
+    if autoSkipEnabled then
+        local success, err = pcall(function()
+            local args = {"SkipVoteYes"}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
+        end)
+
+        if not success then
+            warn("Lỗi Auto Skip: " .. tostring(err))
+        else
+            print("Auto Skip executed successfully")
+        end
+    end
+end
+
 -- Toggle Auto Vote Start
 AutoPlaySection:AddToggle("AutoVoteToggle", {
     Title = "Auto Vote Start",
@@ -149,32 +165,6 @@ AutoPlaySection:AddToggle("AutoVoteToggle", {
             Fluent:Notify({
                 Title = "Auto Vote Start Disabled",
                 Content = "Đã tắt tự động bầu chọn bắt đầu",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Toggle Auto Skip
-AutoPlaySection:AddToggle("AutoSkipToggle", {
-    Title = "Auto Skip",
-    Description = "Tự động bỏ qua vote",
-    Default = ConfigSystem.CurrentConfig.AutoSkipEnabled or false,
-    Callback = function(Value)
-        autoSkipEnabled = Value
-        ConfigSystem.CurrentConfig.AutoSkipEnabled = Value
-        ConfigSystem.SaveConfig()
-        
-        if autoSkipEnabled then
-            Fluent:Notify({
-                Title = "Auto Skip Enabled",
-                Content = "Đã bật tự động bỏ qua vote",
-                Duration = 3
-            })
-        else
-            Fluent:Notify({
-                Title = "Auto Skip Disabled",
-                Content = "Đã tắt tự động bỏ qua vote",
                 Duration = 3
             })
         end
@@ -207,6 +197,32 @@ AutoPlaySection:AddToggle("AutoRetryToggle", {
     end
 })
 
+-- Toggle Auto Skip
+AutoPlaySection:AddToggle("AutoSkipToggle", {
+    Title = "Auto Skip",
+    Description = "Tự động bỏ qua lượt",
+    Default = ConfigSystem.CurrentConfig.AutoSkipEnabled or false,
+    Callback = function(Value)
+        autoSkipEnabled = Value
+        ConfigSystem.CurrentConfig.AutoSkipEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if autoSkipEnabled then
+            Fluent:Notify({
+                Title = "Auto Skip Enabled",
+                Content = "Đã bật tự động bỏ qua lượt",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Skip Disabled",
+                Content = "Đã tắt tự động bỏ qua lượt",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- Loop chính cho Auto functions
 spawn(function()
     while true do
@@ -216,20 +232,12 @@ spawn(function()
             executeAutoVote()
         end
         
-        if autoSkipEnabled then
-            local success, err = pcall(function()
-                local args = {"SkipVoteYes"}
-                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
-            end)
-            if not success then
-                warn("Lỗi Auto Skip: " .. tostring(err))
-            else
-                print("Auto Skip executed successfully")
-            end
-        end
-        
         if autoRetryEnabled then
             executeAutoRetry()
+        end
+
+        if autoSkipEnabled then 
+            executeAutoSkip()
         end
     end
 end)
