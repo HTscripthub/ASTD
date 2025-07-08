@@ -24,6 +24,8 @@ ConfigSystem.DefaultConfig = {
     AutoVoteEnabled = false,
     AutoRetryEnabled = false,
     AutoSkipEnabled = false,
+    AutoNextEnabled = false, -- Add new Auto Next setting
+    AutoLeaveEnabled = false, -- Add new Auto Leave setting
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -65,7 +67,9 @@ ConfigSystem.LoadConfig()
 -- Biến lưu trạng thái của tab Main
 local autoVoteEnabled = ConfigSystem.CurrentConfig.AutoVoteEnabled or false
 local autoRetryEnabled = ConfigSystem.CurrentConfig.AutoRetryEnabled or false
-local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false 
+local autoSkipEnabled = ConfigSystem.CurrentConfig.AutoSkipEnabled or false
+local autoNextEnabled = ConfigSystem.CurrentConfig.AutoNextEnabled or false -- Initialize autoNextEnabled
+local autoLeaveEnabled = ConfigSystem.CurrentConfig.AutoLeaveEnabled or false -- Initialize autoLeaveEnabled
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -141,6 +145,46 @@ local function executeAutoSkip()
             warn("Lỗi Auto Skip: " .. tostring(err))
         else
             print("Auto Skip executed successfully")
+        end
+    end
+end
+
+-- Hàm Auto Next
+local function executeAutoNext()
+    if autoNextEnabled then
+        local success, err = pcall(function()
+            local args = {{
+                Type = "Game",
+                Index = "Level",
+                Mode = "Reward"
+            }}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+        end)
+
+        if not success then
+            warn("Lỗi Auto Next: " .. tostring(err))
+        else
+            print("Auto Next executed successfully")
+        end
+    end
+end
+
+-- Hàm Auto Leave
+local function executeAutoLeave()
+    if autoLeaveEnabled then
+        local success, err = pcall(function()
+            local args = {{
+                Type = "Game",
+                Index = "Return",
+                Mode = "Reward"
+            }}
+            game:GetService("ReplicatedStorage").Remotes.GetFunction:InvokeServer(unpack(args))
+        end)
+
+        if not success then
+            warn("Lỗi Auto Leave: " .. tostring(err))
+        else
+            print("Auto Leave executed successfully")
         end
     end
 end
@@ -223,6 +267,58 @@ AutoPlaySection:AddToggle("AutoSkipToggle", {
     end
 })
 
+-- Toggle Auto Next
+AutoPlaySection:AddToggle("AutoNextToggle", {
+    Title = "Auto Next",
+    Description = "Tự động chuyển màn tiếp theo",
+    Default = ConfigSystem.CurrentConfig.AutoNextEnabled or false,
+    Callback = function(Value)
+        autoNextEnabled = Value
+        ConfigSystem.CurrentConfig.AutoNextEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if autoNextEnabled then
+            Fluent:Notify({
+                Title = "Auto Next Enabled",
+                Content = "Đã bật tự động chuyển màn tiếp theo",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Next Disabled",
+                Content = "Đã tắt tự động chuyển màn tiếp theo",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Toggle Auto Leave
+AutoPlaySection:AddToggle("AutoLeaveToggle", {
+    Title = "Auto Leave",
+    Description = "Tự động rời trận đấu",
+    Default = ConfigSystem.CurrentConfig.AutoLeaveEnabled or false,
+    Callback = function(Value)
+        autoLeaveEnabled = Value
+        ConfigSystem.CurrentConfig.AutoLeaveEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if autoLeaveEnabled then
+            Fluent:Notify({
+                Title = "Auto Leave Enabled",
+                Content = "Đã bật tự động rời trận",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Leave Disabled",
+                Content = "Đã tắt tự động rời trận",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- Loop chính cho Auto functions
 spawn(function()
     while true do
@@ -238,6 +334,14 @@ spawn(function()
 
         if autoSkipEnabled then
             executeAutoSkip()
+        end
+
+        if autoNextEnabled then -- Add Auto Next to main loop
+            executeAutoNext()
+        end
+
+        if autoLeaveEnabled then -- Add Auto Leave to main loop
+            executeAutoLeave()
         end
     end
 end)
