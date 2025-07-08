@@ -1045,7 +1045,7 @@ end)
 -- Loop cho Auto Upgrade
 task.spawn(function()
     while true do
-        task.wait(0.1) -- Đợi 1 giây giữa các lần nâng cấp
+        task.wait(0.4) -- Đợi 1 giây giữa các lần nâng cấp
         if autoUpgradeEnabled then
             executeAutoUpgrade()
         end
