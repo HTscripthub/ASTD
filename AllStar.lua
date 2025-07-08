@@ -1004,7 +1004,7 @@ end)
 -- Loop cho Auto Leave
 task.spawn(function()
     while true do
-        task.wait(2)
+        task.wait(4)
         if autoLeaveEnabled then
             executeAutoLeave()
         end
