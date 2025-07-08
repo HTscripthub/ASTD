@@ -48,6 +48,12 @@ ConfigSystem.DefaultConfig = {
     --Tab Auto Place - Unit Place Settings
     AutoPlaceEnabled = false,
     SelectedPlaceMethod = "first", -- Default to first
+
+    --Tab Auto Place - Upgrade Settings
+    AutoUpgradeEnabled = false,
+
+    --Tab Auto Place - Sell Settings
+    AutoSellEnabled = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -108,6 +114,12 @@ local autoJoinChallengeEnabled = ConfigSystem.CurrentConfig.AutoJoinChallengeEna
 -- Biến Lưu trạng thái của tab Auto Place
 local autoPlaceEnabled = ConfigSystem.CurrentConfig.AutoPlaceEnabled or false
 local selectedPlaceMethod = ConfigSystem.CurrentConfig.SelectedPlaceMethod or "first"
+
+-- Biến Lưu trạng thái của tab Auto Place - Upgrade
+local autoUpgradeEnabled = ConfigSystem.CurrentConfig.AutoUpgradeEnabled or false
+
+-- Biến Lưu trạng thái của tab Auto Place - Sell
+local autoSellEnabled = ConfigSystem.CurrentConfig.AutoSellEnabled or false
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -364,6 +376,70 @@ local function executeAutoPlace()
 
     if not success then
         warn("Lỗi Auto Place: " .. tostring(err))
+    end
+end
+
+-- Hàm Auto Upgrade
+local function executeAutoUpgrade()
+    if not autoUpgradeEnabled then return end
+
+    local success, err = pcall(function()
+        local attackVFXFolder = game:GetService("ReplicatedStorage"):WaitForChild("AttackVFX")
+        local upgradeableUnits = {}
+
+        -- Lấy danh sách các đơn vị có thể nâng cấp từ AttackVFX
+        for _, unit in ipairs(attackVFXFolder:GetChildren()) do
+            table.insert(upgradeableUnits, unit.Name)
+        end
+
+        -- Quét các đơn vị đã đặt trong UnitFolder và nâng cấp chúng
+        for _, unitInFolder in ipairs(workspace:WaitForChild("UnitFolder"):GetChildren()) do
+            if table.find(upgradeableUnits, unitInFolder.Name) then
+                local args = {
+                    {
+                        Type = "GameStuff"
+                    },
+                    {
+                        "Upgrade",
+                        unitInFolder
+                    }
+                }
+                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+                task.wait(0.2) -- Đợi một chút giữa các lần nâng cấp để tránh spam
+            end
+        end
+        print("Auto Upgrade executed successfully.")
+    end)
+
+    if not success then
+        warn("Lỗi Auto Upgrade: " .. tostring(err))
+    end
+end
+
+-- Hàm Auto Sell
+local function executeAutoSell()
+    if not autoSellEnabled then return end
+
+    local success, err = pcall(function()
+        -- Quét tất cả các đơn vị trong UnitFolder và bán chúng
+        for _, unitInFolder in ipairs(workspace:WaitForChild("UnitFolder"):GetChildren()) do
+            local args = {
+                {
+                    Type = "GameStuff"
+                },
+                {
+                    "Sell",
+                    unitInFolder
+                }
+            }
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+            task.wait(0.2) -- Đợi một chút giữa các lần bán để tránh spam
+        end
+        print("Auto Sell executed successfully.")
+    end)
+
+    if not success then
+        warn("Lỗi Auto Sell: " .. tostring(err))
     end
 end
 
@@ -778,6 +854,12 @@ ChallengeSection:AddToggle("AutoJoinChallengeToggle", {
 -- Section Unit Place trong tab Auto Place
 local UnitPlaceSection = AutoPlaceTab:AddSection("Unit Place")
 
+-- Section Upgrade trong tab Auto Place
+local UpgradeSection = AutoPlaceTab:AddSection("Upgrade")
+
+-- Section Sell trong tab Auto Place
+local SellSection = AutoPlaceTab:AddSection("Sell")
+
 -- Dropdown Method (Unit Place)
 UnitPlaceSection:AddDropdown("PlaceMethodDropdown", {
     Title = "Method",
@@ -812,6 +894,56 @@ UnitPlaceSection:AddToggle("AutoPlaceToggle", {
             Fluent:Notify({
                 Title = "Auto Place Disabled",
                 Content = "Đã tắt tự động đặt đơn vị",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Toggle Auto Upgrade
+UpgradeSection:AddToggle("AutoUpgradeToggle", {
+    Title = "Auto Upgrade",
+    Description = "Tự động nâng cấp đơn vị",
+    Default = ConfigSystem.CurrentConfig.AutoUpgradeEnabled or false,
+    Callback = function(Value)
+        autoUpgradeEnabled = Value
+        ConfigSystem.CurrentConfig.AutoUpgradeEnabled = Value
+        ConfigSystem.SaveConfig()
+        if autoUpgradeEnabled then
+            Fluent:Notify({
+                Title = "Auto Upgrade Enabled",
+                Content = "Đã bật tự động nâng cấp đơn vị",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Upgrade Disabled",
+                Content = "Đã tắt tự động nâng cấp đơn vị",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Toggle Auto Sell
+SellSection:AddToggle("AutoSellToggle", {
+    Title = "Auto Sell",
+    Description = "Tự động bán đơn vị",
+    Default = ConfigSystem.CurrentConfig.AutoSellEnabled or false,
+    Callback = function(Value)
+        autoSellEnabled = Value
+        ConfigSystem.CurrentConfig.AutoSellEnabled = Value
+        ConfigSystem.SaveConfig()
+        if autoSellEnabled then
+            Fluent:Notify({
+                Title = "Auto Sell Enabled",
+                Content = "Đã bật tự động bán đơn vị",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Sell Disabled",
+                Content = "Đã tắt tự động bán đơn vị",
                 Duration = 3
             })
         end
@@ -906,6 +1038,26 @@ task.spawn(function()
         task.wait(1) -- Đợi 1 giây giữa các lần đặt
         if autoPlaceEnabled then
             executeAutoPlace()
+        end
+    end
+end)
+
+-- Loop cho Auto Upgrade
+task.spawn(function()
+    while true do
+        task.wait(1) -- Đợi 1 giây giữa các lần nâng cấp
+        if autoUpgradeEnabled then
+            executeAutoUpgrade()
+        end
+    end
+end)
+
+-- Loop cho Auto Sell
+task.spawn(function()
+    while true do
+        task.wait(1) -- Đợi 1 giây giữa các lần bán
+        if autoSellEnabled then
+            executeAutoSell()
         end
     end
 end)
