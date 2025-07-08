@@ -113,7 +113,7 @@ local function executeAutoSkip()
     if autoSkipEnabled then
         local success, err = pcall(function()
             local args = {"SkipVoteYes"}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GameStuff"):FireServer(unpack(args))
         end)
         
         if not success then
