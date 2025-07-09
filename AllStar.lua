@@ -52,9 +52,8 @@ ConfigSystem.DefaultConfig = {
     -- Upgrade Settings
     AutoUpgradeEnabled = false,
 
-    --Tab Settings
-    -- Anti AFK
-    AntiAFK = true,
+    -- Anti AFK Settings
+    AntiAFKEnabled = true, -- Default to enabled
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -119,9 +118,8 @@ local selectedPlaceMethod = ConfigSystem.CurrentConfig.SelectedPlaceMethod or "f
 -- Biến Lưu trạng thái của tab Auto Place - Upgrade
 local autoUpgradeEnabled = ConfigSystem.CurrentConfig.AutoUpgradeEnabled or false
 
--- Biến lưu trạng thái Anti AFK
-local antiAFKEnabled = ConfigSystem.CurrentConfig.AntiAFK or true
-local antiAFKConnection = nil
+-- Biến Lưu trạng thái của Anti AFK
+local antiAFKEnabled = ConfigSystem.CurrentConfig.AntiAFKEnabled or false
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -415,6 +413,22 @@ local function executeAutoUpgrade()
 
     if not success then
         warn("Lỗi Auto Upgrade: " .. tostring(err))
+    end
+end
+
+-- Hàm Anti AFK
+local function executeAntiAFK()
+    if not antiAFKEnabled then return end
+
+    local success, err = pcall(function()
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+        task.wait(0.1)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+        print("Anti AFK executed: Simulated jump.")
+    end)
+
+    if not success then
+        warn("Lỗi Anti AFK: " .. tostring(err))
     end
 end
 
@@ -832,9 +846,6 @@ local UnitPlaceSection = AutoPlaceTab:AddSection("Unit Place")
 -- Section Upgrade trong tab Auto Place
 local UpgradeSection = AutoPlaceTab:AddSection("Upgrade")
 
--- Section Sell trong tab Auto Place
-local SellSection = AutoPlaceTab:AddSection("Sell")
-
 -- Dropdown Method (Unit Place)
 UnitPlaceSection:AddDropdown("PlaceMethodDropdown", {
     Title = "Method",
@@ -1005,71 +1016,30 @@ end)
 -- Settings tab configuration
 local SettingsSection = SettingsTab:AddSection("Script Settings")
 
--- Hàm AntiAFK
-local function setupAntiAFK()
-    local VirtualUser = game:GetService("VirtualUser")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-
-    -- Ngắt kết nối cũ nếu có
-    if antiAFKConnection then
-        antiAFKConnection:Disconnect()
-        antiAFKConnection = nil
-    end
-
-    -- Tạo kết nối mới nếu được bật
-    if antiAFKEnabled and LocalPlayer then
-        antiAFKConnection = LocalPlayer.Idled:Connect(function()
-            VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            task.wait(0.5) -- Giảm thời gian chờ xuống 0.5 giây
-            VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        end)
-    end
-end
-
 -- Toggle Anti AFK
-AFKSection:AddToggle("AntiAFKToggle", {
+SettingsSection:AddToggle("AntiAFKToggle", {
     Title = "Anti AFK",
-    Default = antiAFKEnabled,
+    Description = "Tự động chống AFK",
+    Default = ConfigSystem.CurrentConfig.AntiAFKEnabled or false,
     Callback = function(Value)
         antiAFKEnabled = Value
-        ConfigSystem.CurrentConfig.AntiAFK = Value
+        ConfigSystem.CurrentConfig.AntiAFKEnabled = Value
         ConfigSystem.SaveConfig()
-
-        if Value then
+        if antiAFKEnabled then
             Fluent:Notify({
-                Title = "Anti AFK",
-                Content = "Anti AFK đã được bật",
-                Duration = 2
+                Title = "Anti AFK Enabled",
+                Content = "Đã bật chống AFK",
+                Duration = 3
             })
-            setupAntiAFK()
         else
             Fluent:Notify({
-                Title = "Anti AFK",
-                Content = "Anti AFK đã được tắt",
-                Duration = 2
+                Title = "Anti AFK Disabled",
+                Content = "Đã tắt chống AFK",
+                Duration = 3
             })
-            -- Ngắt kết nối nếu có
-            if antiAFKConnection then
-                antiAFKConnection:Disconnect()
-                antiAFKConnection = nil
-            end
         end
     end
 })
-
---Loop AntiAFK
--- Khởi tạo Anti AFK khi script khởi động
-spawn(function()
-    -- Đợi một chút để script khởi động hoàn tất
-    wait(3)
-
-    -- Nếu Anti AFK được bật, thiết lập nó
-    if antiAFKEnabled then
-        setupAntiAFK()
-        print("Đã tự động thiết lập Anti AFK khi khởi động script")
-    end
-end)
 
 -- Integration with SaveManager
 SaveManager:SetLibrary(Fluent)
@@ -1172,3 +1142,13 @@ end)
 
 print("HT Hub All Star Tower Defense Script đã tải thành công!")
 print("Sử dụng Left Ctrl để thu nhỏ/mở rộng UI")
+
+-- Loop cho Anti AFK
+task.spawn(function()
+    while true do
+        task.wait(30) -- Thực hiện mỗi 30 giây để tránh spam và vẫn hiệu quả chống AFK
+        if antiAFKEnabled then
+            executeAntiAFK()
+        end
+    end
+end)
