@@ -1112,16 +1112,23 @@ game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEv
         end
     end)
     
-    -- Theo dõi GetFunction (upgrade, sell)
-    functionConnection = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction").OnClientInvoke:Connect(function(...)
-        if not macroRecordingEnabled then return end
-        
+    -- Sử dụng namecall hook chỉ cho GetFunction (upgrade, sell)
+    -- RemoteFunction không thể sử dụng OnClientInvoke:Connect vì đó là một callback, không phải event
+    local oldNamecall = nil
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
         local args = {...}
-        if args[1] and args[1].Type == "GameStuff" and args[2] then
-            if args[2][1] == "Upgrade" then
-                local unitName = args[2][2].Name
-                
-                local actionStr = string.format([[
+        local method = getnamecallmethod()
+        
+        -- Chỉ theo dõi GetFunction và chỉ khi đang ghi
+        if macroRecordingEnabled and 
+           method == "InvokeServer" and 
+           self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction") then
+            
+            if args[1] and args[1].Type == "GameStuff" and args[2] then
+                if args[2][1] == "Upgrade" and args[2][2] and args[2][2].Name then
+                    local unitName = args[2][2].Name
+                    
+                    local actionStr = string.format([[
 -- Upgrade %s
 local args = {
     {
@@ -1134,12 +1141,12 @@ local args = {
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
 ]], unitName, unitName)
-                
-                recordAction(actionStr)
-            elseif args[2][1] == "Sell" then
-                local unitName = args[2][2].Name
-                
-                local actionStr = string.format([[
+                    
+                    recordAction(actionStr)
+                elseif args[2][1] == "Sell" and args[2][2] and args[2][2].Name then
+                    local unitName = args[2][2].Name
+                    
+                    local actionStr = string.format([[
 -- Sell %s
 local args = {
     {
@@ -1152,11 +1159,18 @@ local args = {
 }
 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
 ]], unitName, unitName)
-                
-                recordAction(actionStr)
+                    
+                    recordAction(actionStr)
+                end
             end
         end
+        
+        -- Không làm ảnh hưởng đến hoạt động bình thường của game
+        return oldNamecall(self, ...)
     end)
+    
+    -- Lưu hook để có thể loại bỏ khi dừng ghi
+    functionConnection = oldNamecall
 end
 
 -- Hàm kết thúc ghi
@@ -1166,10 +1180,8 @@ local function stopRecording()
         eventConnection = nil
     end
     
-    if functionConnection then
-        functionConnection:Disconnect()
-        functionConnection = nil
-    end
+    -- Không thể loại bỏ hook, nhưng ta có thể để nó không làm gì khi macroRecordingEnabled = false
+    functionConnection = nil
 end
 
 -- Đảm bảo đóng tất cả các connection khi tắt script
