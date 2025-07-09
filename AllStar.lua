@@ -1172,28 +1172,47 @@ print("Sử dụng Left Ctrl để thu nhỏ/mở rộng UI")
 -- Hàm để lấy danh sách tất cả các file macro hiện có
 local function refreshMacroList()
     availableMacros = {}
+    
+    print("Đang refresh danh sách macro...")
+    
+    -- Kiểm tra thư mục tồn tại
+    if not isfolder("HTHubAllStar") then
+        print("Thư mục HTHubAllStar không tồn tại, đang tạo...")
+        pcall(function() makefolder("HTHubAllStar") end)
+    end
+    
+    if not isfolder("HTHubAllStar/Macros") then
+        print("Thư mục HTHubAllStar/Macros không tồn tại, đang tạo...")
+        pcall(function() makefolder("HTHubAllStar/Macros") end)
+    end
+    
+    -- Liệt kê các file
     local success, files = pcall(function()
         return listfiles("HTHubAllStar/Macros")
     end)
     
-    if not success or not files then
-        warn("Không thể đọc thư mục macro")
-        -- Tạo thư mục nếu chưa tồn tại
-        pcall(function() 
-            makefolder("HTHubAllStar")
-            makefolder("HTHubAllStar/Macros") 
-        end)
+    if not success then
+        warn("Lỗi khi đọc thư mục macro: " .. tostring(files))
         return {}
     end
+    
+    if not files then
+        warn("Không có files trả về từ listfiles")
+        return {}
+    end
+    
+    print("Tìm thấy " .. #files .. " files trong thư mục macro")
     
     for _, file in ipairs(files) do
         if string.match(file, "%.txt$") then
             local fileName = string.match(file, "[^/\\]+%.txt$")
             fileName = string.sub(fileName, 1, -5) -- Loại bỏ phần .txt
             table.insert(availableMacros, fileName)
+            print("Đã thêm macro: " .. fileName)
         end
     end
     
+    print("Tổng số macro có sẵn: " .. #availableMacros)
     return availableMacros
 end
 
@@ -1208,17 +1227,59 @@ local function saveMacroToFile(name, actions)
         return false
     end
     
-    -- Đảm bảo thư mục tồn tại
-    pcall(function() 
-        makefolder("HTHubAllStar")
-        makefolder("HTHubAllStar/Macros") 
+    print("Bắt đầu lưu macro: " .. name)
+    
+    -- Thử tạo file test trước
+    local testSuccess, testErr = pcall(function()
+        writefile("test_permission.txt", "Testing write permission")
     end)
     
+    if not testSuccess then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Không có quyền ghi file: " .. tostring(testErr),
+            Duration = 5
+        })
+        return false
+    else
+        print("Đã kiểm tra quyền ghi file: OK")
+    end
+    
+    -- Đảm bảo thư mục tồn tại
+    local folderSuccess, folderErr = pcall(function() 
+        if not isfolder("HTHubAllStar") then
+            makefolder("HTHubAllStar")
+            print("Đã tạo thư mục HTHubAllStar")
+        end
+        
+        if not isfolder("HTHubAllStar/Macros") then
+            makefolder("HTHubAllStar/Macros")
+            print("Đã tạo thư mục HTHubAllStar/Macros")
+        end
+    end)
+    
+    if not folderSuccess then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Lỗi khi tạo thư mục: " .. tostring(folderErr),
+            Duration = 5
+        })
+        return false
+    end
+    
     local filePath = "HTHubAllStar/Macros/" .. name .. ".txt"
+    print("Đường dẫn file: " .. filePath)
+    
     local content = ""
     
-    for _, action in ipairs(actions) do
-        content = content .. action .. "\n\n"
+    if #actions == 0 then
+        content = "-- Macro trống\n-- Không có hành động nào được ghi lại"
+        print("Tạo macro trống")
+    else
+        for _, action in ipairs(actions) do
+            content = content .. action .. "\n\n"
+        end
+        print("Số lượng hành động: " .. #actions)
     end
     
     local success, err = pcall(function()
@@ -1231,15 +1292,35 @@ local function saveMacroToFile(name, actions)
             Content = "Đã lưu macro " .. name .. " thành công!",
             Duration = 3
         })
+        print("Lưu macro thành công: " .. filePath)
         refreshMacroList()
         return true
     else
         Fluent:Notify({
             Title = "Error",
             Content = "Lỗi khi lưu macro: " .. tostring(err),
-            Duration = 3
+            Duration = 5
         })
-        return false
+        print("Lỗi khi lưu macro: " .. tostring(err))
+        
+        -- Thử cách khác
+        print("Thử lưu với đường dẫn tương đối...")
+        local altSuccess, altErr = pcall(function()
+            writefile(name .. ".txt", content)
+        end)
+        
+        if altSuccess then
+            Fluent:Notify({
+                Title = "Partial Success",
+                Content = "Đã lưu macro vào thư mục gốc!",
+                Duration = 3
+            })
+            print("Lưu macro thành công vào thư mục gốc")
+            return true
+        else
+            print("Vẫn không thể lưu file: " .. tostring(altErr))
+            return false
+        end
     end
 end
 
@@ -1518,21 +1599,38 @@ MacroSettingSection:AddButton({
             return
         end
         
-        -- Lưu macro hiện tại nếu có
-        if #macroActions > 0 then
-            saveMacroToFile(macroName, macroActions)
-            macroActions = {} -- Reset sau khi lưu
-            
-            -- Cập nhật dropdown
-            MacroDropdown:SetValues(refreshMacroList())
-            MacroDropdown:Set(macroName)
-        else
-            Fluent:Notify({
-                Title = "Warning",
-                Content = "Không có hành động nào được ghi lại",
-                Duration = 3
-            })
+        -- Kiểm tra đường dẫn hiện tại
+        local currentDirectory = ""
+        pcall(function()
+            currentDirectory = readfile("current_directory.txt")
+        end)
+        
+        if currentDirectory == "" then
+            pcall(function()
+                writefile("current_directory.txt", "Test write permission")
+                currentDirectory = "Có quyền ghi file ở thư mục gốc"
+            end)
         end
+        
+        print("Đường dẫn hiện tại: " .. tostring(currentDirectory))
+        print("Đang tạo macro với tên: " .. macroName)
+        
+        -- Tạo macro ngay cả khi không có hành động
+        local success = saveMacroToFile(macroName, macroActions)
+        
+        if success then
+            print("Đã tạo macro thành công!")
+        else
+            print("Lỗi khi tạo macro!")
+        end
+        
+        -- Reset sau khi lưu
+        macroActions = {} 
+        
+        -- Cập nhật dropdown
+        local macros = refreshMacroList()
+        MacroDropdown:SetValues(macros)
+        MacroDropdown:Set(macroName)
     end
 })
 
