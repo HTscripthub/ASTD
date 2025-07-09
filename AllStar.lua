@@ -98,6 +98,17 @@ end
 -- Tải cấu hình khi khởi động
 ConfigSystem.LoadConfig()
 
+-- Đảm bảo selectedMacro hợp lệ
+local currentMacroNames = loadMacroNames()
+if not table.find(currentMacroNames, ConfigSystem.CurrentConfig.SelectedMacro) then
+    ConfigSystem.CurrentConfig.SelectedMacro = currentMacroNames[1] or ""
+    ConfigSystem.SaveConfig()
+end
+local selectedMacro = ConfigSystem.CurrentConfig.SelectedMacro -- Initialize local selectedMacro after config validation
+local newMacroName = "" -- Biến tạm thời cho input của user, không lưu vào config
+local recordedActions = {} -- Bảng để lưu các hành động macro
+local macroStartTime = 0 -- Thời gian bắt đầu ghi macro
+
 -- Biến lưu trạng thái của tab Main
 local autoVoteEnabled = ConfigSystem.CurrentConfig.AutoVoteEnabled or false
 local autoRetryEnabled = ConfigSystem.CurrentConfig.AutoRetryEnabled or false
@@ -110,10 +121,6 @@ local selectedSpeed = ConfigSystem.CurrentConfig.SelectedSpeed or 2
 -- Biến Lưu trạng thái của Macro
 local macroRecordingEnabled = ConfigSystem.CurrentConfig.MacroRecordingEnabled or false
 local macroPlayingEnabled = ConfigSystem.CurrentConfig.MacroPlayingEnabled or false
-local selectedMacro = ConfigSystem.CurrentConfig.SelectedMacro or ""
-local newMacroName = "" -- Biến tạm thời cho input của user, không lưu vào config
-local recordedActions = {} -- Bảng để lưu các hành động macro
-local macroStartTime = 0 -- Thời gian bắt đầu ghi macro
 
 -- Biến Lưu trạng thái của tab Map
 local selectedMap = ConfigSystem.CurrentConfig.SelectedMap or "World1"
@@ -497,9 +504,17 @@ local function loadMacroNames()
     end)
 
     if success and content then
-        macroNames = game:GetService("HttpService"):JSONDecode(content)
+        local decodedNames = game:GetService("HttpService"):JSONDecode(content)
+        for _, name in ipairs(decodedNames) do
+            if type(name) == "string" and name ~= "" then -- Filter out non-string or empty names
+                table.insert(macroNames, name)
+            end
+        end
     else
         writefile("HTHubAllStar_Macros/macros.json", "[]")
+    end
+    if #macroNames == 0 then
+        table.insert(macroNames, "No Macros Available")
     end
     return macroNames
 end
@@ -1116,22 +1131,22 @@ UpgradeSection:AddToggle("AutoUpgradeToggle", {
 -- Toggle Auto Sell
 SellSection:AddToggle("AutoSellToggle", {
     Title = "Auto Sell",
-    Description = "Tự động bán đơn vị khi đạt được điểm",
-    Default = false,
+    Description = "Tự động bán đơn vị",
+    Default = ConfigSystem.CurrentConfig.AutoSellEnabled or false,
     Callback = function(Value)
-        -- This toggle is not directly tied to ConfigSystem.CurrentConfig.AutoSellEnabled
-        -- as it's a separate feature. It will be handled by the game's sell logic.
-        -- For now, we'll just print a message.
-        if Value then
+        autoSellEnabled = Value
+        ConfigSystem.CurrentConfig.AutoSellEnabled = Value
+        ConfigSystem.SaveConfig()
+        if autoSellEnabled then
             Fluent:Notify({
                 Title = "Auto Sell Enabled",
-                Content = "Đã bật tự động bán đơn vị khi đạt điểm",
+                Content = "Đã bật tự động bán đơn vị",
                 Duration = 3
             })
         else
             Fluent:Notify({
                 Title = "Auto Sell Disabled",
-                Content = "Đã tắt tự động bán đơn vị khi đạt điểm",
+                Content = "Đã tắt tự động bán đơn vị",
                 Duration = 3
             })
         end
