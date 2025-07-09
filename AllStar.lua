@@ -1,13 +1,3 @@
--- Đợi 15 giây trước khi khởi động script
-print("All Star Tower Defense Script đang khởi động...")
-print("Đợi 15 giây để tránh lag...")
-
-for i = 15, 1, -1 do
-    print("Khởi động sau " .. i .. " giây...")
-    wait(1)
-end
-
-print("Bắt đầu tải script...")
 -- Load UI Library với error handling
 local success, err = pcall(function()
     Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
@@ -55,7 +45,7 @@ ConfigSystem.DefaultConfig = {
     SelectedChallengeMethod = "Start",
     AutoJoinChallengeEnabled = false,
 
-    --Tab Auto Place
+    --Tab Auto Place 
     -- Unit Place Settings
     AutoPlaceEnabled = false,
     SelectedPlaceMethod = "first",
@@ -65,11 +55,11 @@ ConfigSystem.DefaultConfig = {
     -- Anti AFK Settings
     AntiAFKEnabled = true, -- Default to enabled
 
-    -- Tab Macro
-    -- Macro Settings
+    -- Tab Macro Settings
+    MacroName = "",
     SelectedMacro = "",
-    MacroRecordingEnabled = false,
-    MacroPlayingEnabled = false,
+    RecordingEnabled = false,
+    PlayingEnabled = false,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -135,6 +125,14 @@ local autoUpgradeEnabled = ConfigSystem.CurrentConfig.AutoUpgradeEnabled or fals
 -- Biến Lưu trạng thái của Anti AFK
 local antiAFKEnabled = ConfigSystem.CurrentConfig.AntiAFKEnabled or false
 
+-- Biến Lưu trạng thái của Macro
+local macroName = ConfigSystem.CurrentConfig.MacroName or ""
+local selectedMacro = ConfigSystem.CurrentConfig.SelectedMacro or ""
+local recordingEnabled = ConfigSystem.CurrentConfig.RecordingEnabled or false
+local playingEnabled = ConfigSystem.CurrentConfig.PlayingEnabled or false
+local macroActions = {} -- Lưu các hành động khi record
+local availableMacros = {} -- Lưu danh sách macro có sẵn
+
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
 
@@ -160,11 +158,11 @@ local MapTab = Window:AddTab({ Title = "Map", Icon = "rbxassetid://13311804137" 
 -- Tạo Tab Auto Place
 local AutoPlaceTab = Window:AddTab({ Title = "Auto Place", Icon = "rbxassetid://13311805545" })
 
--- Tạo Tab Macro
-local MacroTab = Window:AddTab({ Title = "Macro", Icon = "rbxassetid://13311798537" })
-
 -- Tạo Tab Settings
 local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "rbxassetid://13311798537" })
+
+-- Tạo Tab Macro
+local MacroTab = Window:AddTab({ Title = "Macro", Icon = "rbxassetid://13311805545" })
 
 -- Tab Main ( Tab thứ 1 )
 -- Section Auto Play trong tab Main
@@ -275,12 +273,11 @@ local function executeSpeed()
     if not speedEnabled then return end
 
     local success, err = pcall(function()
-        local args = { {
+        local args = {{
             Index = selectedSpeed,
             Type = "Speed"
-        } }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
-        args))
+        }}
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
     end)
 
     if not success then
@@ -299,13 +296,11 @@ local function executeAutoJoinChallenge()
         local args1 = {
             {
                 Type = "Lobby",
-                Object = workspace:WaitForChild("Map"):WaitForChild("Buildings"):WaitForChild("ChallengePods")
-                :WaitForChild("Pod"):WaitForChild("Interact"),
+                Object = workspace:WaitForChild("Map"):WaitForChild("Buildings"):WaitForChild("ChallengePods"):WaitForChild("Pod"):WaitForChild("Interact"),
                 Mode = "Pod"
             }
         }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
-        args1))
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args1))
 
         task.wait(1) -- Đợi 1 giây giữa các bước
 
@@ -321,8 +316,7 @@ local function executeAutoJoinChallenge()
                 Update = true
             }
         }
-        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
-        args2))
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args2))
 
         task.wait(1) -- Đợi 1 giây giữa các bước
 
@@ -336,8 +330,7 @@ local function executeAutoJoinChallenge()
                     Mode = "Pod"
                 }
             }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
-            args3))
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args3))
         elseif selectedChallengeMethod == "Find Team" then
             local args3 = {
                 {
@@ -347,8 +340,7 @@ local function executeAutoJoinChallenge()
                     Update = true
                 }
             }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(
-            args3))
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args3))
         end
     end)
 
@@ -356,8 +348,7 @@ local function executeAutoJoinChallenge()
         warn("Lỗi Auto Join Challenge: " .. tostring(err))
     else
         print("Auto Join Challenge executed successfully - Challenge: " ..
-            selectedChallenge ..
-            ", Difficulty: " .. selectedChallengeDifficulty .. ", Method: " .. selectedChallengeMethod)
+            selectedChallenge .. ", Difficulty: " .. selectedChallengeDifficulty .. ", Method: " .. selectedChallengeMethod)
     end
 end
 
@@ -428,8 +419,7 @@ local function executeAutoUpgrade()
                         unitInFolder
                     }
                 }
-                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(
-                unpack(args))
+                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
                 task.wait(0.2) -- Đợi một chút giữa các lần nâng cấp để tránh spam
             end
         end
@@ -792,9 +782,9 @@ ChallengeSection:AddDropdown("ChooseChallengeDropdown", {
     Values = { "Flying Enemies", "Single Placement", "Unsellable" },
     Multi = false,
     Default = selectedChallenge == "Challenge1" and "Flying Enemies" or
-        selectedChallenge == "Challenge4" and "Single Placement" or
-        selectedChallenge == "Challenge3" and "Unsellable" or
-        "Flying Enemies",
+              selectedChallenge == "Challenge4" and "Single Placement" or
+              selectedChallenge == "Challenge3" and "Unsellable" or
+              "Flying Enemies",
     Callback = function(Value)
         if Value == "Flying Enemies" then
             selectedChallenge = "Challenge1"
@@ -933,500 +923,6 @@ UpgradeSection:AddToggle("AutoUpgradeToggle", {
                 Duration = 3
             })
         end
-    end
-})
-
--- Tab Macro ( Tab thứ 4 )
--- Section Macro Settings trong tab Macro
-local MacroSettingsSection = MacroTab:AddSection("Macro Settings")
-
--- Biến lưu trạng thái của tab Macro
-local macroName = ""
-local selectedMacro = ConfigSystem.CurrentConfig.SelectedMacro or ""
-local macroRecordingEnabled = ConfigSystem.CurrentConfig.MacroRecordingEnabled or false
-local macroPlayingEnabled = ConfigSystem.CurrentConfig.MacroPlayingEnabled or false
-local recordedActions = {}
-local availableMacros = {}
-
--- Hàm để tải danh sách macro có sẵn
-local function loadAvailableMacros()
-    availableMacros = {}
-
-    local success, err = pcall(function()
-        local files = listfiles("HTHubAllStar/Macros")
-        for _, file in ipairs(files) do
-            if file:match("%.txt$") then
-                local macroName = file:gsub("HTHubAllStar/Macros/", ""):gsub("%.txt$", "")
-                table.insert(availableMacros, macroName)
-            end
-        end
-    end)
-
-    if not success then
-        warn("Lỗi khi tải danh sách macro: " .. tostring(err))
-        -- Tạo thư mục nếu chưa tồn tại
-        pcall(function()
-            if not isfolder("HTHubAllStar") then
-                makefolder("HTHubAllStar")
-            end
-            if not isfolder("HTHubAllStar/Macros") then
-                makefolder("HTHubAllStar/Macros")
-            end
-        end)
-    end
-
-    return availableMacros
-end
-
--- Hàm để lưu macro vào file txt
-local function saveMacro(name, actions)
-    local success, err = pcall(function()
-        if not isfolder("HTHubAllStar") then
-            makefolder("HTHubAllStar")
-        end
-        if not isfolder("HTHubAllStar/Macros") then
-            makefolder("HTHubAllStar/Macros")
-        end
-
-        local content = "-- " .. name .. " Macro\n-- Created: " .. os.date() .. "\n\n"
-
-        for i, action in ipairs(actions) do
-            content = content .. action .. "\n\n"
-        end
-
-        writefile("HTHubAllStar/Macros/" .. name .. ".txt", content)
-    end)
-
-    if success then
-        print("Đã lưu macro thành công: " .. name)
-        return true
-    else
-        warn("Lưu macro thất bại:", err)
-        return false
-    end
-end
-
--- Hàm để tải macro từ file
-local function loadMacro(name)
-    local success, content = pcall(function()
-        if isfile("HTHubAllStar/Macros/" .. name .. ".txt") then
-            return readfile("HTHubAllStar/Macros/" .. name .. ".txt")
-        end
-        return nil
-    end)
-
-    if success and content then
-        return content
-    else
-        warn("Tải macro thất bại: " .. name)
-        return nil
-    end
-end
-
--- Hàm để xóa macro
-local function deleteMacro(name)
-    local success, err = pcall(function()
-        if isfile("HTHubAllStar/Macros/" .. name .. ".txt") then
-            delfile("HTHubAllStar/Macros/" .. name .. ".txt")
-        end
-    end)
-
-    if success then
-        print("Đã xóa macro thành công: " .. name)
-        return true
-    else
-        warn("Xóa macro thất bại:", err)
-        return false
-    end
-end
-
--- Hàm ghi lại actions khi recording
-local function recordAction(actionStr)
-    if macroRecordingEnabled then
-        table.insert(recordedActions, actionStr)
-        print("Đã ghi lại hành động")
-    end
-end
-
--- Hàm thực hiện macro
-local function playMacro(macroContent)
-    if not macroContent or macroContent == "" then
-        warn("Không có hành động nào để thực hiện!")
-        return
-    end
-
-    task.spawn(function()
-        local success, err = pcall(function()
-            -- Thực thi mã Lua từ content của macro
-            local fn, loadErr = loadstring(macroContent)
-            if fn then
-                fn()
-            else
-                warn("Lỗi khi tải mã macro:", loadErr)
-            end
-        end)
-
-        if not success then
-            warn("Lỗi khi thực thi macro:", err)
-        end
-
-        -- Tự động tắt chế độ play khi hoàn thành
-        macroPlayingEnabled = false
-        ConfigSystem.CurrentConfig.MacroPlayingEnabled = false
-        ConfigSystem.SaveConfig()
-
-        Fluent:Notify({
-            Title = "Macro Completed",
-            Content = "Đã hoàn thành thực thi macro",
-            Duration = 3
-        })
-    end)
-end
-
--- Hook vào các remote để bắt các hành động
-local eventConnection = nil
-local functionConnection = nil
-
--- Hàm bắt đầu ghi
-local function startRecording()
-    recordedActions = {}
-
-    -- Sử dụng namecall hook cho cả SetEvent và GetFunction
-    local oldNamecall = nil
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local args = { ... }
-        local method = getnamecallmethod()
-
-        -- Chỉ theo dõi khi đang ghi
-        if not macroRecordingEnabled then
-            return oldNamecall(self, ...)
-        end
-
-        -- Theo dõi SetEvent (place unit)
-        if method == "FireServer" and
-            self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent") then
-            -- Ghi lại hành động đặt đơn vị
-            if args[1] == "GameStuff" and args[2] and args[2][1] == "Summon" then
-                local unitName = args[2][2]
-                local position = args[2][3]
-
-                if unitName and position then
-                    local actionStr = string.format([[
--- Place %s
-local args = {
-    "GameStuff",
-    {
-        "Summon",
-        "%s",
-        CFrame.new(%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    }
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))
-]], unitName, unitName,
-                        position.X, position.Y, position.Z,
-                        position.XVector.X, position.XVector.Y, position.XVector.Z,
-                        position.YVector.X, position.YVector.Y, position.YVector.Z)
-
-                    recordAction(actionStr)
-                    print("Đã ghi lại hành động: Place " .. unitName)
-                end
-            end
-
-            -- Theo dõi GetFunction (upgrade, sell)
-        elseif method == "InvokeServer" and
-            self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction") then
-            if args[1] and args[1].Type == "GameStuff" and args[2] then
-                -- Ghi lại hành động nâng cấp đơn vị
-                if args[2][1] == "Upgrade" and args[2][2] and args[2][2]:IsA("Model") then
-                    local unitName = args[2][2].Name
-
-                    local actionStr = string.format([[
--- Upgrade %s
-local args = {
-    {
-        Type = "GameStuff"
-    },
-    {
-        "Upgrade",
-        workspace:WaitForChild("UnitFolder"):WaitForChild("%s")
-    }
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-]], unitName, unitName)
-
-                    recordAction(actionStr)
-                    print("Đã ghi lại hành động: Upgrade " .. unitName)
-
-                    -- Ghi lại hành động bán đơn vị
-                elseif args[2][1] == "Sell" and args[2][2] and args[2][2]:IsA("Model") then
-                    local unitName = args[2][2].Name
-
-                    local actionStr = string.format([[
--- Sell %s
-local args = {
-    {
-        Type = "GameStuff"
-    },
-    {
-        "Sell",
-        workspace:WaitForChild("UnitFolder"):WaitForChild("%s")
-    }
-}
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-]], unitName, unitName)
-
-                    recordAction(actionStr)
-                    print("Đã ghi lại hành động: Sell " .. unitName)
-                end
-            end
-        end
-
-        -- Không làm ảnh hưởng đến hoạt động bình thường của game
-        return oldNamecall(self, ...)
-    end)
-
-    -- Lưu hook để có thể quản lý khi dừng ghi
-    functionConnection = oldNamecall
-
-    -- Đã loại bỏ eventConnection vì đã sử dụng hook cho cả hai loại remote
-end
-
--- Hàm kết thúc ghi
-local function stopRecording()
-    -- Không thể loại bỏ hook, nhưng ta đã kiểm tra macroRecordingEnabled trong hook
-    functionConnection = nil
-end
-
--- Đảm bảo đóng tất cả các connection khi tắt script
-game:GetService("Players").LocalPlayer.OnTeleport:Connect(function()
-    stopRecording()
-end)
-
--- Input field để nhập tên macro
-MacroSettingsSection:AddInput("MacroNameInput", {
-    Title = "Macro Name",
-    Default = "",
-    Placeholder = "Enter macro name...",
-    Numeric = false,
-    Finished = false,
-    Callback = function(Value)
-        macroName = Value
-    end
-})
-
--- Button để tạo macro mới
-MacroSettingsSection:AddButton({
-    Title = "Create Macro",
-    Callback = function()
-        if macroName == "" then
-            Fluent:Notify({
-                Title = "Error",
-                Content = "Vui lòng nhập tên cho macro",
-                Duration = 3
-            })
-            return
-        end
-
-        -- Tạo file macro mới (rỗng)
-        if saveMacro(macroName, {}) then
-            Fluent:Notify({
-                Title = "Macro Created",
-                Content = "Đã tạo macro: " .. macroName,
-                Duration = 3
-            })
-
-            -- Cập nhật danh sách macro
-            local newMacros = loadAvailableMacros() or {}
-
-            -- Cập nhật dropdown an toàn
-            pcall(function()
-                if MacroDropdown and MacroDropdown.SetValues then
-                    MacroDropdown:SetValues(newMacros)
-                    MacroDropdown:Set(macroName)
-                end
-            end)
-        end
-    end
-})
-
--- Dropdown để chọn macro
-local MacroDropdown = MacroSettingsSection:AddDropdown("MacroDropdown", {
-    Title = "Choose Macro",
-    Description = "",
-    Values = loadAvailableMacros() or {}, -- Ensure we always have a valid table
-    Multi = false,
-    Default = selectedMacro,
-    Callback = function(Value)
-        selectedMacro = Value
-        ConfigSystem.CurrentConfig.SelectedMacro = selectedMacro
-        ConfigSystem.SaveConfig()
-
-        Fluent:Notify({
-            Title = "Macro Selected",
-            Content = "Đã chọn macro: " .. selectedMacro,
-            Duration = 3
-        })
-    end
-})
-
--- Toggle để bật/tắt record
-MacroSettingsSection:AddToggle("RecordToggle", {
-    Title = "Record Macro",
-    Description = "",
-    Default = ConfigSystem.CurrentConfig.MacroRecordingEnabled or false,
-    Callback = function(Value)
-        macroRecordingEnabled = Value
-        ConfigSystem.CurrentConfig.MacroRecordingEnabled = Value
-        ConfigSystem.SaveConfig()
-
-        if macroRecordingEnabled then
-            -- Bắt đầu ghi lại
-            startRecording()
-
-            Fluent:Notify({
-                Title = "Recording Started",
-                Content = "Đang ghi lại macro",
-                Duration = 3
-            })
-        else
-            -- Kết thúc ghi lại
-            stopRecording()
-
-            -- Lưu các hành động đã ghi lại khi kết thúc record
-            if selectedMacro ~= "" and #recordedActions > 0 then
-                if saveMacro(selectedMacro, recordedActions) then
-                    Fluent:Notify({
-                        Title = "Recording Saved",
-                        Content = "Đã lưu " .. #recordedActions .. " hành động vào macro: " .. selectedMacro,
-                        Duration = 3
-                    })
-                end
-            else
-                Fluent:Notify({
-                    Title = "Recording Stopped",
-                    Content = "Đã dừng ghi lại macro (không có hành động nào được lưu)",
-                    Duration = 3
-                })
-            end
-        end
-    end
-})
-
--- Toggle để bật/tắt play macro
-MacroSettingsSection:AddToggle("PlayToggle", {
-    Title = "Play Macro",
-    Description = "",
-    Default = ConfigSystem.CurrentConfig.MacroPlayingEnabled or false,
-    Callback = function(Value)
-        macroPlayingEnabled = Value
-        ConfigSystem.CurrentConfig.MacroPlayingEnabled = Value
-        ConfigSystem.SaveConfig()
-
-        if macroPlayingEnabled then
-            if selectedMacro == "" then
-                Fluent:Notify({
-                    Title = "Error",
-                    Content = "Vui lòng chọn một macro để chạy",
-                    Duration = 3
-                })
-                macroPlayingEnabled = false
-                ConfigSystem.CurrentConfig.MacroPlayingEnabled = false
-                ConfigSystem.SaveConfig()
-                return
-            end
-
-            -- Tải và thực hiện macro
-            local macroContent = loadMacro(selectedMacro)
-            if macroContent then
-                Fluent:Notify({
-                    Title = "Macro Playback Started",
-                    Content = "Đang thực thi macro: " .. selectedMacro,
-                    Duration = 3
-                })
-                playMacro(macroContent)
-            else
-                Fluent:Notify({
-                    Title = "Error",
-                    Content = "Không thể tải macro: " .. selectedMacro,
-                    Duration = 3
-                })
-                macroPlayingEnabled = false
-                ConfigSystem.CurrentConfig.MacroPlayingEnabled = false
-                ConfigSystem.SaveConfig()
-            end
-        else
-            Fluent:Notify({
-                Title = "Macro Playback Stopped",
-                Content = "Đã dừng thực thi macro",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Button để xóa macro
-MacroSettingsSection:AddButton({
-    Title = "Delete Macro",
-    Callback = function()
-        if selectedMacro == "" then
-            Fluent:Notify({
-                Title = "Error",
-                Content = "Vui lòng chọn một macro để xóa",
-                Duration = 3
-            })
-            return
-        end
-
-        if deleteMacro(selectedMacro) then
-            Fluent:Notify({
-                Title = "Macro Deleted",
-                Content = "Đã xóa macro: " .. selectedMacro,
-                Duration = 3
-            })
-
-            -- Cập nhật danh sách macro
-            local newMacros = loadAvailableMacros() or {}
-
-            -- Cập nhật dropdown an toàn
-            pcall(function()
-                if MacroDropdown and MacroDropdown.SetValues then
-                    MacroDropdown:SetValues(newMacros)
-
-                    -- Reset lựa chọn nếu không còn macro nào
-                    if #newMacros == 0 then
-                        selectedMacro = ""
-                        ConfigSystem.CurrentConfig.SelectedMacro = ""
-                        ConfigSystem.SaveConfig()
-                    else
-                        selectedMacro = newMacros[1]
-                        ConfigSystem.CurrentConfig.SelectedMacro = selectedMacro
-                        ConfigSystem.SaveConfig()
-                        MacroDropdown:Set(selectedMacro)
-                    end
-                end
-            end)
-        end
-    end
-})
-
--- Button để refresh danh sách macro
-MacroSettingsSection:AddButton({
-    Title = "Refresh Macro List",
-    Callback = function()
-        local newMacros = loadAvailableMacros() or {}
-
-        -- Cập nhật dropdown an toàn
-        pcall(function()
-            if MacroDropdown and MacroDropdown.SetValues then
-                MacroDropdown:SetValues(newMacros)
-            end
-        end)
-
-        Fluent:Notify({
-            Title = "Macro List Refreshed",
-            Content = "Đã cập nhật danh sách macro",
-            Duration = 3
-        })
     end
 })
 
@@ -1605,7 +1101,7 @@ AutoSaveConfig()
 
 -- Thêm event listener để lưu ngay khi thay đổi giá trị
 local function setupSaveEvents()
-    for _, tab in pairs({ MainTab, SettingsTab }) do
+    for _, tab in pairs({ MainTab, MapTab, AutoPlaceTab, SettingsTab, MacroTab }) do
         if tab and tab._components then
             for _, element in pairs(tab._components) do
                 if element and element.OnChanged then
@@ -1671,3 +1167,504 @@ end)
 
 print("HT Hub All Star Tower Defense Script đã tải thành công!")
 print("Sử dụng Left Ctrl để thu nhỏ/mở rộng UI")
+
+-- Hàm quản lý Macro
+-- Hàm để lấy danh sách tất cả các file macro hiện có
+local function refreshMacroList()
+    availableMacros = {}
+    local success, files = pcall(function()
+        return listfiles("HTHubAllStar/Macros")
+    end)
+    
+    if not success or not files then
+        warn("Không thể đọc thư mục macro")
+        -- Tạo thư mục nếu chưa tồn tại
+        pcall(function() 
+            makefolder("HTHubAllStar")
+            makefolder("HTHubAllStar/Macros") 
+        end)
+        return {}
+    end
+    
+    for _, file in ipairs(files) do
+        if string.match(file, "%.txt$") then
+            local fileName = string.match(file, "[^/\\]+%.txt$")
+            fileName = string.sub(fileName, 1, -5) -- Loại bỏ phần .txt
+            table.insert(availableMacros, fileName)
+        end
+    end
+    
+    return availableMacros
+end
+
+-- Hàm để lưu macro vào file
+local function saveMacroToFile(name, actions)
+    if name == "" then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Tên macro không được để trống",
+            Duration = 3
+        })
+        return false
+    end
+    
+    -- Đảm bảo thư mục tồn tại
+    pcall(function() 
+        makefolder("HTHubAllStar")
+        makefolder("HTHubAllStar/Macros") 
+    end)
+    
+    local filePath = "HTHubAllStar/Macros/" .. name .. ".txt"
+    local content = ""
+    
+    for _, action in ipairs(actions) do
+        content = content .. action .. "\n\n"
+    end
+    
+    local success, err = pcall(function()
+        writefile(filePath, content)
+    end)
+    
+    if success then
+        Fluent:Notify({
+            Title = "Success",
+            Content = "Đã lưu macro " .. name .. " thành công!",
+            Duration = 3
+        })
+        refreshMacroList()
+        return true
+    else
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Lỗi khi lưu macro: " .. tostring(err),
+            Duration = 3
+        })
+        return false
+    end
+end
+
+-- Hàm để đọc macro từ file
+local function loadMacroFromFile(name)
+    if name == "" then return {} end
+    
+    local filePath = "HTHubAllStar/Macros/" .. name .. ".txt"
+    
+    if not isfile(filePath) then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Không tìm thấy file macro: " .. name,
+            Duration = 3
+        })
+        return {}
+    end
+    
+    local success, content = pcall(function()
+        return readfile(filePath)
+    end)
+    
+    if not success or not content then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Lỗi khi đọc file macro",
+            Duration = 3
+        })
+        return {}
+    end
+    
+    local actions = {}
+    local currentAction = ""
+    
+    for line in string.gmatch(content, "[^\r\n]+") do
+        if line ~= "" then
+            currentAction = currentAction .. line .. "\n"
+        else
+            if currentAction ~= "" then
+                table.insert(actions, currentAction)
+                currentAction = ""
+            end
+        end
+    end
+    
+    -- Thêm action cuối cùng nếu có
+    if currentAction ~= "" then
+        table.insert(actions, currentAction)
+    end
+    
+    return actions
+end
+
+-- Hàm để xóa macro
+local function deleteMacro(name)
+    if name == "" then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Vui lòng chọn macro để xóa",
+            Duration = 3
+        })
+        return false
+    end
+    
+    local filePath = "HTHubAllStar/Macros/" .. name .. ".txt"
+    
+    if not isfile(filePath) then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Không tìm thấy file macro: " .. name,
+            Duration = 3
+        })
+        return false
+    end
+    
+    local success, err = pcall(function()
+        delfile(filePath)
+    end)
+    
+    if success then
+        Fluent:Notify({
+            Title = "Success",
+            Content = "Đã xóa macro " .. name .. " thành công!",
+            Duration = 3
+        })
+        refreshMacroList()
+        
+        -- Reset selected macro if it's the one being deleted
+        if selectedMacro == name then
+            selectedMacro = ""
+            ConfigSystem.CurrentConfig.SelectedMacro = ""
+            ConfigSystem.SaveConfig()
+        end
+        
+        return true
+    else
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Lỗi khi xóa macro: " .. tostring(err),
+            Duration = 3
+        })
+        return false
+    end
+end
+
+-- Hàm để bắt các action và lưu vào macroActions
+local function recordAction(actionType, ...)
+    if not recordingEnabled then return end
+    
+    local args = {...}
+    local actionString = ""
+    
+    if actionType == "PlaceUnit" then
+        local unitName = args[1]
+        local cframe = args[2]
+        actionString = string.format([[
+local args = { "GameStuff", { "Summon", "%s", CFrame.new(%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f) } }
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))]], 
+            unitName, 
+            cframe.X, cframe.Y, cframe.Z,
+            cframe.XVector.X, cframe.XVector.Y, cframe.XVector.Z,
+            cframe.YVector.X, cframe.YVector.Y, cframe.YVector.Z,
+            cframe.ZVector.X, cframe.ZVector.Y, cframe.ZVector.Z
+        )
+    elseif actionType == "UpgradeUnit" then
+        local unitInstance = args[1]
+        actionString = string.format([[
+local args = { { Type = "GameStuff" }, { "Upgrade", workspace:WaitForChild("UnitFolder"):WaitForChild("%s") } }
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))]], 
+            unitInstance.Name
+        )
+    elseif actionType == "SellUnit" then
+        local unitInstance = args[1]
+        actionString = string.format([[
+local args = { { Type = "GameStuff" }, { "Sell", workspace:WaitForChild("UnitFolder"):WaitForChild("%s") } }
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))]], 
+            unitInstance.Name
+        )
+    end
+    
+    if actionString ~= "" then
+        table.insert(macroActions, actionString)
+        print("Recorded action: " .. actionType)
+    end
+end
+
+-- Hàm hook các Remote Events để bắt action
+local function setupRecordingHooks()
+    -- Hook cho Place Unit
+    local oldSetEvent = nil
+    oldSetEvent = hookfunction(game:GetService("ReplicatedStorage").Remotes.SetEvent.FireServer, function(self, ...)
+        local args = {...}
+        if args[1] == "GameStuff" and args[2][1] == "Summon" then
+            recordAction("PlaceUnit", args[2][2], args[2][3])
+        end
+        return oldSetEvent(self, ...)
+    end)
+    
+    -- Hook cho Upgrade và Sell Unit
+    local oldGetFunction = nil
+    oldGetFunction = hookfunction(game:GetService("ReplicatedStorage").Remotes.GetFunction.InvokeServer, function(self, ...)
+        local args = {...}
+        if args[1] and args[1].Type == "GameStuff" and args[2] then
+            if args[2][1] == "Upgrade" then
+                recordAction("UpgradeUnit", args[2][2])
+            elseif args[2][1] == "Sell" then
+                recordAction("SellUnit", args[2][2])
+            end
+        end
+        return oldGetFunction(self, ...)
+    end)
+end
+
+-- Hàm để chạy macro
+local function playMacro()
+    if not playingEnabled or selectedMacro == "" then return end
+    
+    local actions = loadMacroFromFile(selectedMacro)
+    
+    if #actions == 0 then
+        Fluent:Notify({
+            Title = "Error",
+            Content = "Macro không có hành động nào",
+            Duration = 3
+        })
+        return
+    end
+    
+    task.spawn(function()
+        for i, action in ipairs(actions) do
+            if not playingEnabled then break end
+            
+            local success, err = pcall(function()
+                loadstring(action)()
+            end)
+            
+            if not success then
+                warn("Lỗi khi chạy action #" .. i .. ": " .. tostring(err))
+            end
+            
+            task.wait(0.5) -- Đợi giữa các hành động
+        end
+        
+        playingEnabled = false
+        ConfigSystem.CurrentConfig.PlayingEnabled = false
+        ConfigSystem.SaveConfig()
+        
+        Fluent:Notify({
+            Title = "Info",
+            Content = "Đã chạy xong macro " .. selectedMacro,
+            Duration = 3
+        })
+    end)
+end
+
+-- Khởi tạo các hooks cho recording
+setupRecordingHooks()
+
+-- Khởi tạo thư mục macro nếu chưa tồn tại
+pcall(function() 
+    makefolder("HTHubAllStar")
+    makefolder("HTHubAllStar/Macros") 
+end)
+
+-- Refresh danh sách macro
+refreshMacroList()
+
+-- Thêm UI cho tab Macro
+local MacroSettingSection = MacroTab:AddSection("Macro Settings")
+
+-- Input cho tên Macro
+local MacroNameInput = MacroSettingSection:AddInput("MacroNameInput", {
+    Title = "Macro Name",
+    Default = "",
+    Placeholder = "Nhập tên macro...",
+    Numeric = false,
+    Finished = false,
+    Callback = function(Value)
+        macroName = Value
+        ConfigSystem.CurrentConfig.MacroName = Value
+        ConfigSystem.SaveConfig()
+    end
+})
+
+-- Dropdown để chọn Macro
+local MacroDropdown = MacroSettingSection:AddDropdown("MacroDropdown", {
+    Title = "Choose Macro",
+    Description = "Chọn macro đã lưu",
+    Values = refreshMacroList(),
+    Multi = false,
+    Default = selectedMacro,
+    Callback = function(Value)
+        selectedMacro = Value
+        ConfigSystem.CurrentConfig.SelectedMacro = Value
+        ConfigSystem.SaveConfig()
+        
+        Fluent:Notify({
+            Title = "Macro Selected",
+            Content = "Đã chọn macro: " .. Value,
+            Duration = 3
+        })
+    end
+})
+
+-- Nút Create Macro
+MacroSettingSection:AddButton({
+    Title = "Create Macro",
+    Description = "Tạo macro mới",
+    Callback = function()
+        if macroName == "" then
+            Fluent:Notify({
+                Title = "Error",
+                Content = "Vui lòng nhập tên macro",
+                Duration = 3
+            })
+            return
+        end
+        
+        -- Lưu macro hiện tại nếu có
+        if #macroActions > 0 then
+            saveMacroToFile(macroName, macroActions)
+            macroActions = {} -- Reset sau khi lưu
+            
+            -- Cập nhật dropdown
+            MacroDropdown:SetValues(refreshMacroList())
+            MacroDropdown:Set(macroName)
+        else
+            Fluent:Notify({
+                Title = "Warning",
+                Content = "Không có hành động nào được ghi lại",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Toggle Record
+MacroSettingSection:AddToggle("RecordToggle", {
+    Title = "Record",
+    Description = "Ghi lại các hành động",
+    Default = recordingEnabled,
+    Callback = function(Value)
+        recordingEnabled = Value
+        ConfigSystem.CurrentConfig.RecordingEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if recordingEnabled then
+            -- Reset macroActions khi bắt đầu record mới
+            macroActions = {}
+            
+            Fluent:Notify({
+                Title = "Recording Started",
+                Content = "Đang ghi lại các hành động...",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Recording Stopped",
+                Content = "Đã dừng ghi lại hành động. Số hành động: " .. #macroActions,
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Toggle Play Macro
+MacroSettingSection:AddToggle("PlayMacroToggle", {
+    Title = "Play Macro",
+    Description = "Thực hiện macro đã chọn",
+    Default = playingEnabled,
+    Callback = function(Value)
+        playingEnabled = Value
+        ConfigSystem.CurrentConfig.PlayingEnabled = Value
+        ConfigSystem.SaveConfig()
+        
+        if playingEnabled then
+            if selectedMacro == "" then
+                Fluent:Notify({
+                    Title = "Error",
+                    Content = "Vui lòng chọn macro trước khi chạy",
+                    Duration = 3
+                })
+                playingEnabled = false
+                ConfigSystem.CurrentConfig.PlayingEnabled = false
+                ConfigSystem.SaveConfig()
+                return
+            end
+            
+            Fluent:Notify({
+                Title = "Macro Playback Started",
+                Content = "Đang chạy macro: " .. selectedMacro,
+                Duration = 3
+            })
+            
+            -- Bắt đầu chạy macro
+            playMacro()
+        else
+            Fluent:Notify({
+                Title = "Macro Playback Stopped",
+                Content = "Đã dừng chạy macro",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Nút Delete Macro
+MacroSettingSection:AddButton({
+    Title = "Delete Macro",
+    Description = "Xóa macro đã chọn",
+    Callback = function()
+        if selectedMacro == "" then
+            Fluent:Notify({
+                Title = "Error",
+                Content = "Vui lòng chọn macro để xóa",
+                Duration = 3
+            })
+            return
+        end
+        
+        -- Hiển thị xác nhận trước khi xóa
+        local Dialog = Fluent:CreateDialog({
+            Title = "Xác nhận xóa",
+            Content = "Bạn có chắc chắn muốn xóa macro '" .. selectedMacro .. "'?",
+            Buttons = {
+                {
+                    Title = "Xóa",
+                    Callback = function()
+                        if deleteMacro(selectedMacro) then
+                            -- Cập nhật dropdown
+                            MacroDropdown:SetValues(refreshMacroList())
+                            MacroDropdown:Set("")
+                        end
+                    end
+                },
+                {
+                    Title = "Hủy"
+                }
+            }
+        })
+        Dialog:Show()
+    end
+})
+
+-- Nút Refresh Macro List
+MacroSettingSection:AddButton({
+    Title = "Refresh Macro List",
+    Description = "Cập nhật danh sách macro",
+    Callback = function()
+        local macros = refreshMacroList()
+        MacroDropdown:SetValues(macros)
+        
+        Fluent:Notify({
+            Title = "Macro List Refreshed",
+            Content = "Đã tìm thấy " .. #macros .. " macro",
+            Duration = 3
+        })
+    end
+})
+
+-- Thêm thông tin về cách sử dụng
+MacroTab:AddParagraph({
+    Title = "Hướng dẫn sử dụng Macro",
+    Content = "1. Bật 'Record' để bắt đầu ghi lại hành động\n2. Thực hiện các thao tác đặt, nâng cấp và bán đơn vị\n3. Tắt 'Record' khi hoàn thành\n4. Nhập tên và nhấn 'Create Macro' để lưu\n5. Để chạy, chọn macro và bật 'Play Macro'\n6. Dùng 'Delete Macro' để xóa macro không cần thiết"
+})
+
+-- Thực thi tự động lưu cấu hình
+AutoSaveConfig()
