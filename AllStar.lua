@@ -45,15 +45,16 @@ ConfigSystem.DefaultConfig = {
     SelectedChallengeMethod = "Start",
     AutoJoinChallengeEnabled = false,
 
-    --Tab Auto Place - Unit Place Settings
+    --Tab Auto Place 
+    -- Unit Place Settings
     AutoPlaceEnabled = false,
-    SelectedPlaceMethod = "first", -- Default to first
-
-    --Tab Auto Place - Upgrade Settings
+    SelectedPlaceMethod = "first",
+    -- Upgrade Settings
     AutoUpgradeEnabled = false,
 
-    --Tab Auto Place - Sell Settings
-    AutoSellEnabled = false,
+    --Tab Settings
+    -- Anti AFK
+    AntiAFK = true,
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -118,8 +119,9 @@ local selectedPlaceMethod = ConfigSystem.CurrentConfig.SelectedPlaceMethod or "f
 -- Biến Lưu trạng thái của tab Auto Place - Upgrade
 local autoUpgradeEnabled = ConfigSystem.CurrentConfig.AutoUpgradeEnabled or false
 
--- Biến Lưu trạng thái của tab Auto Place - Sell
-local autoSellEnabled = ConfigSystem.CurrentConfig.AutoSellEnabled or false
+-- Biến lưu trạng thái Anti AFK
+local antiAFKEnabled = ConfigSystem.CurrentConfig.AntiAFK or true
+local antiAFKConnection = nil
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -413,33 +415,6 @@ local function executeAutoUpgrade()
 
     if not success then
         warn("Lỗi Auto Upgrade: " .. tostring(err))
-    end
-end
-
--- Hàm Auto Sell
-local function executeAutoSell()
-    if not autoSellEnabled then return end
-
-    local success, err = pcall(function()
-        -- Quét tất cả các đơn vị trong UnitFolder và bán chúng
-        for _, unitInFolder in ipairs(workspace:WaitForChild("UnitFolder"):GetChildren()) do
-            local args = {
-                {
-                    Type = "GameStuff"
-                },
-                {
-                    "Sell",
-                    unitInFolder
-                }
-            }
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-            task.wait(0.2) -- Đợi một chút giữa các lần bán để tránh spam
-        end
-        print("Auto Sell executed successfully.")
-    end)
-
-    if not success then
-        warn("Lỗi Auto Sell: " .. tostring(err))
     end
 end
 
@@ -925,31 +900,6 @@ UpgradeSection:AddToggle("AutoUpgradeToggle", {
     end
 })
 
--- Toggle Auto Sell
-SellSection:AddToggle("AutoSellToggle", {
-    Title = "Auto Sell",
-    Description = "Tự động bán đơn vị",
-    Default = ConfigSystem.CurrentConfig.AutoSellEnabled or false,
-    Callback = function(Value)
-        autoSellEnabled = Value
-        ConfigSystem.CurrentConfig.AutoSellEnabled = Value
-        ConfigSystem.SaveConfig()
-        if autoSellEnabled then
-            Fluent:Notify({
-                Title = "Auto Sell Enabled",
-                Content = "Đã bật tự động bán đơn vị",
-                Duration = 3
-            })
-        else
-            Fluent:Notify({
-                Title = "Auto Sell Disabled",
-                Content = "Đã tắt tự động bán đơn vị",
-                Duration = 3
-            })
-        end
-    end
-})
-
 -- Loop Auto Play
 -- Loop cho Auto Vote
 task.spawn(function()
@@ -1004,7 +954,7 @@ end)
 -- Loop cho Auto Leave
 task.spawn(function()
     while true do
-        task.wait(4)
+        task.wait(2)
         if autoLeaveEnabled then
             executeAutoLeave()
         end
@@ -1045,25 +995,81 @@ end)
 -- Loop cho Auto Upgrade
 task.spawn(function()
     while true do
-        task.wait(0.4) -- Đợi 1 giây giữa các lần nâng cấp
+        task.wait(1) -- Đợi 1 giây giữa các lần nâng cấp
         if autoUpgradeEnabled then
             executeAutoUpgrade()
         end
     end
 end)
 
--- Loop cho Auto Sell
-task.spawn(function()
-    while true do
-        task.wait(0.4) -- Đợi 1 giây giữa các lần bán
-        if autoSellEnabled then
-            executeAutoSell()
-        end
-    end
-end)
-
 -- Settings tab configuration
 local SettingsSection = SettingsTab:AddSection("Script Settings")
+
+-- Hàm AntiAFK
+local function setupAntiAFK()
+    local VirtualUser = game:GetService("VirtualUser")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- Ngắt kết nối cũ nếu có
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+        antiAFKConnection = nil
+    end
+
+    -- Tạo kết nối mới nếu được bật
+    if antiAFKEnabled and LocalPlayer then
+        antiAFKConnection = LocalPlayer.Idled:Connect(function()
+            VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            task.wait(0.5) -- Giảm thời gian chờ xuống 0.5 giây
+            VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        end)
+    end
+end
+
+-- Toggle Anti AFK
+AFKSection:AddToggle("AntiAFKToggle", {
+    Title = "Anti AFK",
+    Default = antiAFKEnabled,
+    Callback = function(Value)
+        antiAFKEnabled = Value
+        ConfigSystem.CurrentConfig.AntiAFK = Value
+        ConfigSystem.SaveConfig()
+
+        if Value then
+            Fluent:Notify({
+                Title = "Anti AFK",
+                Content = "Anti AFK đã được bật",
+                Duration = 2
+            })
+            setupAntiAFK()
+        else
+            Fluent:Notify({
+                Title = "Anti AFK",
+                Content = "Anti AFK đã được tắt",
+                Duration = 2
+            })
+            -- Ngắt kết nối nếu có
+            if antiAFKConnection then
+                antiAFKConnection:Disconnect()
+                antiAFKConnection = nil
+            end
+        end
+    end
+})
+
+--Loop AntiAFK
+-- Khởi tạo Anti AFK khi script khởi động
+spawn(function()
+    -- Đợi một chút để script khởi động hoàn tất
+    wait(3)
+
+    -- Nếu Anti AFK được bật, thiết lập nó
+    if antiAFKEnabled then
+        setupAntiAFK()
+        print("Đã tự động thiết lập Anti AFK khi khởi động script")
+    end
+end)
 
 -- Integration with SaveManager
 SaveManager:SetLibrary(Fluent)
