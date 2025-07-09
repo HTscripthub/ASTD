@@ -468,42 +468,50 @@ local oldNamecall
 oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
+    local result = oldNamecall(self, ...) -- Gọi hàm gốc trước để không làm gián đoạn gameplay
     
-    if MacroSystem.Recording and self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent") and method == "FireServer" then
-        local eventArgs = args[1]
-        if eventArgs == "GameStuff" and args[2][1] == "Summon" then
-            local unitName = args[2][2]
-            local position = args[2][3]
-            
-            MacroSystem.RecordAction("place_unit", {
-                unitName = unitName,
-                position = position
-            })
-        end
-    elseif MacroSystem.Recording and self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction") and method == "InvokeServer" then
-        local eventArgs = args[1]
-        if eventArgs.Type == "GameStuff" then
-            local action = args[2][1]
-            
-            if action == "Upgrade" then
-                local unit = args[2][2]
-                if unit and unit:IsA("Model") and unit.Name then
-                    MacroSystem.RecordAction("upgrade_unit", {
-                        unitName = unit.Name
-                    })
-                end
-            elseif action == "Sell" then
-                local unit = args[2][2]
-                if unit and unit:IsA("Model") and unit.Name then
-                    MacroSystem.RecordAction("sell_unit", {
-                        unitName = unit.Name
-                    })
+    -- Ghi lại hành động sau khi thực thi để không ảnh hưởng đến game
+    task.spawn(function()
+        -- Ghi lại place unit
+        if MacroSystem.Recording and self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent") and method == "FireServer" then
+            if args[1] == "GameStuff" and args[2] and args[2][1] == "Summon" then
+                local unitName = args[2][2]
+                local position = args[2][3]
+                
+                MacroSystem.RecordAction("place_unit", {
+                    unitName = unitName,
+                    position = position
+                })
+                print("Đã ghi lại hành động đặt đơn vị: " .. unitName)
+            end
+        
+        -- Ghi lại upgrade hoặc sell unit
+        elseif MacroSystem.Recording and self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction") and method == "InvokeServer" then
+            if args[1] and args[1].Type == "GameStuff" and args[2] then
+                local action = args[2][1]
+                
+                if action == "Upgrade" then
+                    local unit = args[2][2]
+                    if unit and unit:IsA("Model") and unit.Name then
+                        MacroSystem.RecordAction("upgrade_unit", {
+                            unitName = unit.Name
+                        })
+                        print("Đã ghi lại hành động nâng cấp đơn vị: " .. unit.Name)
+                    end
+                elseif action == "Sell" then
+                    local unit = args[2][2]
+                    if unit and unit:IsA("Model") and unit.Name then
+                        MacroSystem.RecordAction("sell_unit", {
+                            unitName = unit.Name
+                        })
+                        print("Đã ghi lại hành động bán đơn vị: " .. unit.Name)
+                    end
                 end
             end
         end
-    end
+    end)
     
-    return oldNamecall(self, ...)
+    return result
 end)
 
 -- Cấu hình Tab Macro
