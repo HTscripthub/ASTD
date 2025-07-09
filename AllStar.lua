@@ -373,8 +373,8 @@ local function executeAutoPlace()
 
         -- Đặt tất cả các đơn vị trong thư mục AttackVFX
         for i, unit in ipairs(units) do
-            local offsetX = math.random() * 20 - 10 -- Tăng phạm vi offset lên -10 đến 10
-            local offsetZ = math.random() * 20 - 10 -- Tăng phạm vi offset lên -10 đến 10
+            local offsetX = math.random() * 17 - 8.5 -- Tăng phạm vi offset lên -10 đến 10
+            local offsetZ = math.random() * 17 - 8.5 -- Tăng phạm vi offset lên -10 đến 10
             local placeCFrame = targetCFrame * CFrame.new(offsetX, 0, offsetZ)
             local args = { "GameStuff", { "Summon", unit.Name, placeCFrame } }
             game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))
