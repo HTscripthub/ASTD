@@ -1061,7 +1061,7 @@ end)
 -- Loop cho Auto Place
 task.spawn(function()
     while true do
-        task.wait(1) -- Đợi 1 giây giữa các lần đặt
+        task.wait(2) -- Đợi 2 giây giữa các lần đặt
         if autoPlaceEnabled then
             executeAutoPlace()
         end
