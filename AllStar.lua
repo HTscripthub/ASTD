@@ -1170,11 +1170,15 @@ MacroSettingsSection:AddButton({
             })
             
             -- Cập nhật danh sách macro
-            loadAvailableMacros()
+            local newMacros = loadAvailableMacros() or {}
             
-            -- Cập nhật dropdown
-            MacroDropdown:SetValues(availableMacros)
-            MacroDropdown:Set(macroName)
+            -- Cập nhật dropdown an toàn
+            pcall(function() 
+                if MacroDropdown and MacroDropdown.SetValues then
+                    MacroDropdown:SetValues(newMacros)
+                    MacroDropdown:Set(macroName)
+                end
+            end)
         end
     end
 })
@@ -1183,7 +1187,7 @@ MacroSettingsSection:AddButton({
 local MacroDropdown = MacroSettingsSection:AddDropdown("MacroDropdown", {
     Title = "Choose Macro",
     Description = "",
-    Values = loadAvailableMacros(),
+    Values = loadAvailableMacros() or {}, -- Ensure we always have a valid table
     Multi = false,
     Default = selectedMacro,
     Callback = function(Value)
@@ -1312,20 +1316,26 @@ MacroSettingsSection:AddButton({
             })
             
             -- Cập nhật danh sách macro
-            local newMacros = loadAvailableMacros()
-            MacroDropdown:SetValues(newMacros)
+            local newMacros = loadAvailableMacros() or {}
             
-            -- Reset lựa chọn nếu không còn macro nào
-            if #newMacros == 0 then
-                selectedMacro = ""
-                ConfigSystem.CurrentConfig.SelectedMacro = ""
-                ConfigSystem.SaveConfig()
-            else
-                selectedMacro = newMacros[1]
-                ConfigSystem.CurrentConfig.SelectedMacro = selectedMacro
-                ConfigSystem.SaveConfig()
-                MacroDropdown:Set(selectedMacro)
-            end
+            -- Cập nhật dropdown an toàn
+            pcall(function()
+                if MacroDropdown and MacroDropdown.SetValues then
+                    MacroDropdown:SetValues(newMacros)
+                    
+                    -- Reset lựa chọn nếu không còn macro nào
+                    if #newMacros == 0 then
+                        selectedMacro = ""
+                        ConfigSystem.CurrentConfig.SelectedMacro = ""
+                        ConfigSystem.SaveConfig()
+                    else
+                        selectedMacro = newMacros[1]
+                        ConfigSystem.CurrentConfig.SelectedMacro = selectedMacro
+                        ConfigSystem.SaveConfig()
+                        MacroDropdown:Set(selectedMacro)
+                    end
+                end
+            end)
         end
     end
 })
@@ -1334,8 +1344,14 @@ MacroSettingsSection:AddButton({
 MacroSettingsSection:AddButton({
     Title = "Refresh Macro List",
     Callback = function()
-        local newMacros = loadAvailableMacros()
-        MacroDropdown:SetValues(newMacros)
+        local newMacros = loadAvailableMacros() or {}
+        
+        -- Cập nhật dropdown an toàn
+        pcall(function()
+            if MacroDropdown and MacroDropdown.SetValues then
+                MacroDropdown:SetValues(newMacros)
+            end
+        end)
         
         Fluent:Notify({
             Title = "Macro List Refreshed",
