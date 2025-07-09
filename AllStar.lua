@@ -511,21 +511,6 @@ local macroNameInput = MacroSettingsSection:AddInput("MacroNameInput", {
     end
 })
 
--- Nút tạo macro
-MacroSettingsSection:AddButton({
-    Title = "Create Macro",
-    Callback = function()
-        local macroName = ConfigSystem.CurrentConfig.MacroName
-        if MacroSystem.CreateMacro(macroName) then
-            -- Update UI
-            local macroDropdown = MacroTab:FindComponent("MacroDropdown")
-            if macroDropdown then
-                macroDropdown:SetValues(MacroSystem.MacroFiles)
-            end
-        end
-    end
-})
-
 -- Dropdown chọn macro
 local macroDropdown = MacroSettingsSection:AddDropdown("MacroDropdown", {
     Title = "Choose Macro",
@@ -535,6 +520,18 @@ local macroDropdown = MacroSettingsSection:AddDropdown("MacroDropdown", {
     Callback = function(Value)
         ConfigSystem.CurrentConfig.SelectedMacro = Value
         ConfigSystem.SaveConfig()
+    end
+})
+
+-- Nút tạo macro
+MacroSettingsSection:AddButton({
+    Title = "Create Macro",
+    Callback = function()
+        local macroName = ConfigSystem.CurrentConfig.MacroName
+        if MacroSystem.CreateMacro(macroName) then
+            -- Update UI với tham chiếu trực tiếp
+            macroDropdown:SetValues(MacroSystem.MacroFiles)
+        end
     end
 })
 
@@ -576,11 +573,8 @@ MacroSettingsSection:AddButton({
     Callback = function()
         local macroName = ConfigSystem.CurrentConfig.SelectedMacro
         if MacroSystem.DeleteMacro(macroName) then
-            -- Update UI
-            local macroDropdown = MacroTab:FindComponent("MacroDropdown")
-            if macroDropdown then
-                macroDropdown:SetValues(MacroSystem.RefreshMacroList())
-            end
+            -- Update UI với tham chiếu trực tiếp
+            macroDropdown:SetValues(MacroSystem.MacroFiles)
         end
     end
 })
@@ -590,10 +584,8 @@ MacroSettingsSection:AddButton({
     Title = "Refresh Macro List",
     Callback = function()
         MacroSystem.RefreshMacroList()
-        local macroDropdown = MacroTab:FindComponent("MacroDropdown")
-        if macroDropdown then
-            macroDropdown:SetValues(MacroSystem.MacroFiles)
-        end
+        -- Update UI với tham chiếu trực tiếp
+        macroDropdown:SetValues(MacroSystem.MacroFiles)
     end
 })
 
@@ -611,15 +603,11 @@ task.spawn(function()
                 MacroSystem.Playing = false
                 MacroSystem.PlayingIndex = 1
                 
-                -- Reset toggle
-                local playToggle = MacroTab:FindComponent("PlayToggle")
-                if playToggle then
-                    playToggle:Set(false)
-                end
-                
+                -- Reset toggle bằng biến toàn cục
                 ConfigSystem.CurrentConfig.MacroPlaying = false
                 ConfigSystem.SaveConfig()
                 
+                -- Thông báo hoàn thành
                 Fluent:Notify({
                     Title = "Macro Completed",
                     Content = "Hoàn thành phát macro: " .. MacroSystem.CurrentMacro,
