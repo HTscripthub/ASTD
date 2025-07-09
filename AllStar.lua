@@ -55,6 +55,8 @@ ConfigSystem.DefaultConfig = {
     SelectedChallengeDifficulty = "Normal",
     SelectedChallengeMethod = "Start",
     AutoJoinChallengeEnabled = false,
+    --Infinite Settings
+    AutoJoinInfiniteEnabled = false,
 
     --Tab Auto Place 
     -- Unit Place Settings
@@ -62,9 +64,6 @@ ConfigSystem.DefaultConfig = {
     SelectedPlaceMethod = "first",
     -- Upgrade Settings
     AutoUpgradeEnabled = false,
-
-    -- Anti AFK Settings
-    AntiAFKEnabled = true, -- Default to enabled
 }
 ConfigSystem.CurrentConfig = {}
 
@@ -121,14 +120,12 @@ local selectedChallenge = ConfigSystem.CurrentConfig.SelectedChallenge or "Chall
 local selectedChallengeDifficulty = ConfigSystem.CurrentConfig.SelectedChallengeDifficulty or "Normal"
 local selectedChallengeMethod = ConfigSystem.CurrentConfig.SelectedChallengeMethod or "Start"
 local autoJoinChallengeEnabled = ConfigSystem.CurrentConfig.AutoJoinChallengeEnabled or false
+local autoJoinInfiniteEnabled = ConfigSystem.CurrentConfig.AutoJoinInfiniteEnabled or false
 
 -- Biến Lưu trạng thái của tab Auto Place
 local autoPlaceEnabled = ConfigSystem.CurrentConfig.AutoPlaceEnabled or false
 local selectedPlaceMethod = ConfigSystem.CurrentConfig.SelectedPlaceMethod or "first"
 local autoUpgradeEnabled = ConfigSystem.CurrentConfig.AutoUpgradeEnabled or false
-
--- Biến Lưu trạng thái của Anti AFK
-local antiAFKEnabled = ConfigSystem.CurrentConfig.AntiAFKEnabled or false
 
 -- Lấy tên người chơi
 local playerName = game:GetService("Players").LocalPlayer.Name
@@ -346,6 +343,42 @@ local function executeAutoJoinChallenge()
     end
 end
 
+-- Hàm Auto Join Infinite
+local function executeAutoJoinInfinite()
+    if not autoJoinInfiniteEnabled then return end
+
+    local success, err = pcall(function()
+        -- Bước 1: Tương tác với Infinite Pod
+        local args1 = {
+            {
+                Type = "Lobby",
+                Object = workspace:WaitForChild("Map"):WaitForChild("Buildings"):WaitForChild("InfinitePods"):WaitForChild("StoryPod"):WaitForChild("Interact"),
+                Mode = "Pod"
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args1))
+
+        task.wait(1) -- Đợi 1 giây giữa các bước
+
+        -- Bước 2: Bắt đầu mode Infinite
+        local args2 = {
+            {
+                Start = true,
+                Type = "Lobby",
+                Update = true,
+                Mode = "Pod"
+            }
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args2))
+    end)
+
+    if not success then
+        warn("Lỗi Auto Join Infinite: " .. tostring(err))
+    else
+        print("Auto Join Infinite executed successfully")
+    end
+end
+
 -- Hàm Auto Place
 local function executeAutoPlace()
     if not autoPlaceEnabled then return end
@@ -422,22 +455,6 @@ local function executeAutoUpgrade()
 
     if not success then
         warn("Lỗi Auto Upgrade: " .. tostring(err))
-    end
-end
-
--- Hàm Anti AFK
-local function executeAntiAFK()
-    if not antiAFKEnabled then return end
-
-    local success, err = pcall(function()
-        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-        task.wait(0.1)
-        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-        print("Anti AFK executed: Simulated jump.")
-    end)
-
-    if not success then
-        warn("Lỗi Anti AFK: " .. tostring(err))
     end
 end
 
@@ -619,6 +636,9 @@ local StorySection = MapTab:AddSection("Story")
 
 -- Section Challenge trong tab Map
 local ChallengeSection = MapTab:AddSection("Challenge")
+
+-- Section Infinite trong tab Map
+local InfiniteSection = MapTab:AddSection("Infinite")
 
 -- Dropdown Choose Map
 local MapDropdown = StorySection:AddDropdown("MapDropdown", {
@@ -848,6 +868,32 @@ ChallengeSection:AddToggle("AutoJoinChallengeToggle", {
     end
 })
 
+-- Toggle Auto Join Infinite
+InfiniteSection:AddToggle("AutoJoinInfiniteToggle", {
+    Title = "Join Infinite",
+    Description = "",
+    Default = ConfigSystem.CurrentConfig.AutoJoinInfiniteEnabled or false,
+    Callback = function(Value)
+        autoJoinInfiniteEnabled = Value
+        ConfigSystem.CurrentConfig.AutoJoinInfiniteEnabled = Value
+        ConfigSystem.SaveConfig()
+
+        if autoJoinInfiniteEnabled then
+            Fluent:Notify({
+                Title = "Auto Join Infinite Enabled",
+                Content = "Đã bật tự động tham gia chế độ vô hạn",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Auto Join Infinite Disabled",
+                Content = "Đã tắt tự động tham gia chế độ vô hạn",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- Tab Auto Place ( Tab thứ 3 )
 -- Section Unit Place trong tab Auto Place
 local UnitPlaceSection = AutoPlaceTab:AddSection("Unit Place")
@@ -1002,6 +1048,16 @@ task.spawn(function()
     end
 end)
 
+-- Loop cho Auto Join Infinite
+task.spawn(function()
+    while true do
+        task.wait(5)
+        if autoJoinInfiniteEnabled then
+            executeAutoJoinInfinite()
+        end
+    end
+end)
+
 -- Loop cho Auto Place
 task.spawn(function()
     while true do
@@ -1024,41 +1080,6 @@ end)
 
 -- Settings tab configuration
 local SettingsSection = SettingsTab:AddSection("Script Settings")
-
--- Toggle Anti AFK
-SettingsSection:AddToggle("AntiAFKToggle", {
-    Title = "Anti AFK",
-    Description = "Tự động chống AFK",
-    Default = ConfigSystem.CurrentConfig.AntiAFKEnabled or false,
-    Callback = function(Value)
-        antiAFKEnabled = Value
-        ConfigSystem.CurrentConfig.AntiAFKEnabled = Value
-        ConfigSystem.SaveConfig()
-        if antiAFKEnabled then
-            Fluent:Notify({
-                Title = "Anti AFK Enabled",
-                Content = "Đã bật chống AFK",
-                Duration = 3
-            })
-        else
-            Fluent:Notify({
-                Title = "Anti AFK Disabled",
-                Content = "Đã tắt chống AFK",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Loop cho Anti AFK
-task.spawn(function()
-    while true do
-        task.wait(30)
-        if antiAFKEnabled then
-            executeAntiAFK()
-        end
-    end
-end)
 
 -- Integration with SaveManager
 SaveManager:SetLibrary(Fluent)
@@ -1161,3 +1182,4 @@ end)
 
 print("HT Hub All Star Tower Defense Script đã tải thành công!")
 print("Sử dụng Left Ctrl để thu nhỏ/mở rộng UI")
+
