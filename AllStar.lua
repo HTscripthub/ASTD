@@ -411,7 +411,7 @@ local function executeAutoPlace()
             local placeCFrame = targetCFrame * CFrame.new(offsetX, 0, offsetZ)
             local args = { "GameStuff", { "Summon", unit.Name, placeCFrame } }
             game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))
-            task.wait(1) -- Đợi 1 giây giữa các lần đặt để tránh spam
+            task.wait(5) -- Đợi 5 giây giữa các lần đặt để tránh spam
         end
         print("Auto Place executed successfully.")
     end)
@@ -447,7 +447,7 @@ local function executeAutoUpgrade()
                     }
                 }
                 game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-                task.wait(2) -- Đợi một chút giữa các lần nâng cấp để tránh spam
+                task.wait(3) -- Đợi một chút giữa các lần nâng cấp để tránh spam
             end
         end
         print("Auto Upgrade executed successfully.")
@@ -1061,7 +1061,7 @@ end)
 -- Loop cho Auto Place
 task.spawn(function()
     while true do
-        task.wait(2) -- Đợi 2 giây giữa các lần đặt
+        task.wait(4) -- Đợi 2 giây giữa các lần đặt
         if autoPlaceEnabled then
             executeAutoPlace()
         end
