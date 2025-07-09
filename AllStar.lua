@@ -947,8 +947,8 @@ local function loadAvailableMacros()
     local success, err = pcall(function()
         local files = listfiles("HTHubAllStar/Macros")
         for _, file in ipairs(files) do
-            if file:match("%.json$") then
-                local macroName = file:gsub("HTHubAllStar/Macros/", ""):gsub("%.json$", "")
+            if file:match("%.txt$") then
+                local macroName = file:gsub("HTHubAllStar/Macros/", ""):gsub("%.txt$", "")
                 table.insert(availableMacros, macroName)
             end
         end
@@ -970,7 +970,7 @@ local function loadAvailableMacros()
     return availableMacros
 end
 
--- Hàm để lưu macro vào file
+-- Hàm để lưu macro vào file txt
 local function saveMacro(name, actions)
     local success, err = pcall(function()
         if not isfolder("HTHubAllStar") then
@@ -980,12 +980,13 @@ local function saveMacro(name, actions)
             makefolder("HTHubAllStar/Macros")
         end
         
-        local macroData = {
-            name = name,
-            actions = actions
-        }
+        local content = "-- " .. name .. " Macro\n-- Created: " .. os.date() .. "\n\n"
         
-        writefile("HTHubAllStar/Macros/" .. name .. ".json", game:GetService("HttpService"):JSONEncode(macroData))
+        for i, action in ipairs(actions) do
+            content = content .. action .. "\n\n"
+        end
+        
+        writefile("HTHubAllStar/Macros/" .. name .. ".txt", content)
     end)
     
     if success then
@@ -1000,15 +1001,14 @@ end
 -- Hàm để tải macro từ file
 local function loadMacro(name)
     local success, content = pcall(function()
-        if isfile("HTHubAllStar/Macros/" .. name .. ".json") then
-            return readfile("HTHubAllStar/Macros/" .. name .. ".json")
+        if isfile("HTHubAllStar/Macros/" .. name .. ".txt") then
+            return readfile("HTHubAllStar/Macros/" .. name .. ".txt")
         end
         return nil
     end)
     
     if success and content then
-        local data = game:GetService("HttpService"):JSONDecode(content)
-        return data.actions
+        return content
     else
         warn("Tải macro thất bại: " .. name)
         return nil
@@ -1018,8 +1018,8 @@ end
 -- Hàm để xóa macro
 local function deleteMacro(name)
     local success, err = pcall(function()
-        if isfile("HTHubAllStar/Macros/" .. name .. ".json") then
-            delfile("HTHubAllStar/Macros/" .. name .. ".json")
+        if isfile("HTHubAllStar/Macros/" .. name .. ".txt") then
+            delfile("HTHubAllStar/Macros/" .. name .. ".txt")
         end
     end)
     
@@ -1033,61 +1033,33 @@ local function deleteMacro(name)
 end
 
 -- Hàm ghi lại actions khi recording
-local function recordAction(actionType, actionData)
+local function recordAction(actionStr)
     if macroRecordingEnabled then
-        local action = {
-            type = actionType,
-            data = actionData,
-            timestamp = tick() -- Lưu thời điểm thực hiện để tính toán delay
-        }
-        
-        table.insert(recordedActions, action)
-        print("Đã ghi lại hành động: " .. actionType)
+        table.insert(recordedActions, actionStr)
+        print("Đã ghi lại hành động")
     end
 end
 
 -- Hàm thực hiện macro
-local function playMacro(actions)
-    if not actions or #actions == 0 then
+local function playMacro(macroContent)
+    if not macroContent or macroContent == "" then
         warn("Không có hành động nào để thực hiện!")
         return
     end
     
     task.spawn(function()
-        local previousTimestamp = actions[1].timestamp
+        local success, err = pcall(function()
+            -- Thực thi mã Lua từ content của macro
+            local fn, loadErr = loadstring(macroContent)
+            if fn then
+                fn()
+            else
+                warn("Lỗi khi tải mã macro:", loadErr)
+            end
+        end)
         
-        for i, action in ipairs(actions) do
-            if not macroPlayingEnabled then
-                break -- Dừng nếu người dùng tắt chức năng play
-            end
-            
-            -- Tính toán độ trễ giữa các hành động
-            if i > 1 then
-                local delay = action.timestamp - previousTimestamp
-                task.wait(delay)
-            end
-            previousTimestamp = action.timestamp
-            
-            -- Thực hiện hành động dựa trên loại
-            if action.type == "place_unit" then
-                local args = { "GameStuff", { "Summon", action.data.unitName, action.data.position } }
-                game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))
-                print("Đã đặt đơn vị: " .. action.data.unitName)
-            elseif action.type == "upgrade_unit" then
-                local unit = workspace:WaitForChild("UnitFolder"):WaitForChild(action.data.unitName)
-                if unit then
-                    local args = { { Type = "GameStuff" }, { "Upgrade", unit } }
-                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-                    print("Đã nâng cấp đơn vị: " .. action.data.unitName)
-                end
-            elseif action.type == "sell_unit" then
-                local unit = workspace:WaitForChild("UnitFolder"):WaitForChild(action.data.unitName)
-                if unit then
-                    local args = { { Type = "GameStuff" }, { "Sell", unit } }
-                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
-                    print("Đã bán đơn vị: " .. action.data.unitName)
-                end
-            end
+        if not success then
+            warn("Lỗi khi thực thi macro:", err)
         end
         
         -- Tự động tắt chế độ play khi hoàn thành
@@ -1103,37 +1075,106 @@ local function playMacro(actions)
     end)
 end
 
--- Hook vào các hàm để ghi lại actions
--- Hook đặt đơn vị
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local args = {...}
-    local method = getnamecallmethod()
+-- Hook vào các remote để bắt các hành động
+local eventConnection = nil
+local functionConnection = nil
+
+-- Hàm bắt đầu ghi
+local function startRecording()
+    recordedActions = {}
     
-    if macroRecordingEnabled and self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent") and method == "FireServer" then
-        local actionArgs = args[1]
-        if actionArgs == "GameStuff" and args[2] and args[2][1] == "Summon" then
-            recordAction("place_unit", {
-                unitName = args[2][2],
-                position = args[2][3]
-            })
+    -- Theo dõi SetEvent (place unit)
+    eventConnection = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent").OnClientEvent:Connect(function(...)
+        if not macroRecordingEnabled then return end
+        
+        local args = {...}
+        if args[1] == "GameStuff" and args[2] and args[2][1] == "Summon" then
+            local unitName = args[2][2]
+            local position = args[2][3]
+            
+            local actionStr = string.format([[
+-- Place %s
+local args = {
+    "GameStuff",
+    {
+        "Summon",
+        "%s",
+        CFrame.new(%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    }
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("SetEvent"):FireServer(unpack(args))
+]], unitName, unitName, 
+               position.X, position.Y, position.Z,
+               position.XVector.X, position.XVector.Y, position.XVector.Z,
+               position.YVector.X, position.YVector.Y, position.YVector.Z)
+            
+            recordAction(actionStr)
         end
-    elseif macroRecordingEnabled and self == game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction") and method == "InvokeServer" then
-        local actionArgs = args[1]
-        if actionArgs and actionArgs.Type == "GameStuff" and args[2] then
+    end)
+    
+    -- Theo dõi GetFunction (upgrade, sell)
+    functionConnection = game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction").OnClientInvoke:Connect(function(...)
+        if not macroRecordingEnabled then return end
+        
+        local args = {...}
+        if args[1] and args[1].Type == "GameStuff" and args[2] then
             if args[2][1] == "Upgrade" then
-                recordAction("upgrade_unit", {
-                    unitName = args[2][2].Name
-                })
+                local unitName = args[2][2].Name
+                
+                local actionStr = string.format([[
+-- Upgrade %s
+local args = {
+    {
+        Type = "GameStuff"
+    },
+    {
+        "Upgrade",
+        workspace:WaitForChild("UnitFolder"):WaitForChild("%s")
+    }
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+]], unitName, unitName)
+                
+                recordAction(actionStr)
             elseif args[2][1] == "Sell" then
-                recordAction("sell_unit", {
-                    unitName = args[2][2].Name
-                })
+                local unitName = args[2][2].Name
+                
+                local actionStr = string.format([[
+-- Sell %s
+local args = {
+    {
+        Type = "GameStuff"
+    },
+    {
+        "Sell",
+        workspace:WaitForChild("UnitFolder"):WaitForChild("%s")
+    }
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("GetFunction"):InvokeServer(unpack(args))
+]], unitName, unitName)
+                
+                recordAction(actionStr)
             end
         end
+    end)
+end
+
+-- Hàm kết thúc ghi
+local function stopRecording()
+    if eventConnection then
+        eventConnection:Disconnect()
+        eventConnection = nil
     end
     
-    return oldNamecall(self, ...)
+    if functionConnection then
+        functionConnection:Disconnect()
+        functionConnection = nil
+    end
+end
+
+-- Đảm bảo đóng tất cả các connection khi tắt script
+game:GetService("Players").LocalPlayer.OnTeleport:Connect(function()
+    stopRecording()
 end)
 
 -- Input field để nhập tên macro
@@ -1214,8 +1255,8 @@ MacroSettingsSection:AddToggle("RecordToggle", {
         ConfigSystem.SaveConfig()
         
         if macroRecordingEnabled then
-            -- Reset recorded actions khi bắt đầu record
-            recordedActions = {}
+            -- Bắt đầu ghi lại
+            startRecording()
             
             Fluent:Notify({
                 Title = "Recording Started",
@@ -1223,6 +1264,9 @@ MacroSettingsSection:AddToggle("RecordToggle", {
                 Duration = 3
             })
         else
+            -- Kết thúc ghi lại
+            stopRecording()
+            
             -- Lưu các hành động đã ghi lại khi kết thúc record
             if selectedMacro ~= "" and #recordedActions > 0 then
                 if saveMacro(selectedMacro, recordedActions) then
@@ -1267,14 +1311,14 @@ MacroSettingsSection:AddToggle("PlayToggle", {
             end
             
             -- Tải và thực hiện macro
-            local actions = loadMacro(selectedMacro)
-            if actions then
+            local macroContent = loadMacro(selectedMacro)
+            if macroContent then
                 Fluent:Notify({
                     Title = "Macro Playback Started",
                     Content = "Đang thực thi macro: " .. selectedMacro,
                     Duration = 3
                 })
-                playMacro(actions)
+                playMacro(macroContent)
             else
                 Fluent:Notify({
                     Title = "Error",
